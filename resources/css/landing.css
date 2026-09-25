@@ -1,0 +1,294 @@
+/*
+ * Landing page design system ("liquid glass", editorial).
+ * Used by resources/js/pages/welcome.tsx and resources/js/components/landing/*.
+ * The landing page is always dark, independent of the app's appearance setting.
+ */
+
+@theme {
+    --font-display:
+        var(--font-bodoni-moda, 'Bodoni Moda'), 'Bodoni 72', Didot, Georgia,
+        serif;
+    --font-arabic:
+        var(--font-amiri, 'Amiri'), 'Geeza Pro', 'Noto Naskh Arabic', serif;
+
+    --color-ink: oklch(0.145 0.018 285);
+    --color-ink-raised: oklch(0.19 0.02 285);
+    --color-bone: oklch(0.965 0.012 80);
+    --color-mist: oklch(0.81 0.018 290);
+    --color-smoke: oklch(0.65 0.02 290);
+    --color-champagne: oklch(0.86 0.075 82);
+    --color-champagne-deep: oklch(0.74 0.09 75);
+    --color-amethyst: oklch(0.56 0.19 305);
+    --color-lagoon: oklch(0.64 0.11 195);
+    --color-coral: oklch(0.72 0.16 38);
+    --color-rose: oklch(0.8 0.1 355);
+
+    --text-display-xl: clamp(2.75rem, 1rem + 4.2vw, 4.5rem);
+    --text-display-xl--line-height: 1.02;
+    --text-display-xl--letter-spacing: -0.025em;
+    --text-display-lg: clamp(2.25rem, 1rem + 3vw, 3.75rem);
+    --text-display-lg--line-height: 1.05;
+    --text-display-lg--letter-spacing: -0.02em;
+    --text-display-md: clamp(1.75rem, 1rem + 1.6vw, 2.5rem);
+    --text-display-md--line-height: 1.1;
+    --text-display-md--letter-spacing: -0.015em;
+    --text-kicker: 0.6875rem;
+    --text-kicker--line-height: 1rem;
+    --text-kicker--letter-spacing: 0.28em;
+
+    --ease-glass: cubic-bezier(0.22, 0.8, 0.26, 1);
+
+    --animate-drift-a: drift-a 18s ease-in-out infinite;
+    --animate-drift-b: drift-b 22s ease-in-out infinite;
+    --animate-drift-c: drift-c 20s ease-in-out infinite;
+    --animate-scan: scan 3.6s ease-in-out infinite;
+    --animate-marquee: marquee 40s linear infinite;
+    --animate-pulse-ring: pulse-ring 2.4s ease-out infinite;
+
+    @keyframes drift-a {
+        0%,
+        100% {
+            transform: translate3d(0, 0, 0) scale(1);
+        }
+        33% {
+            transform: translate3d(9%, -7%, 0) scale(1.12);
+        }
+        66% {
+            transform: translate3d(-6%, 5%, 0) scale(0.94);
+        }
+    }
+
+    @keyframes drift-b {
+        0%,
+        100% {
+            transform: translate3d(0, 0, 0) scale(1);
+        }
+        50% {
+            transform: translate3d(-12%, 9%, 0) scale(1.18);
+        }
+    }
+
+    @keyframes drift-c {
+        0%,
+        100% {
+            transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+        }
+        40% {
+            transform: translate3d(7%, 10%, 0) rotate(25deg) scale(1.08);
+        }
+        75% {
+            transform: translate3d(-9%, -4%, 0) rotate(-15deg) scale(0.96);
+        }
+    }
+
+    @keyframes scan {
+        0%,
+        100% {
+            transform: translateY(0%);
+        }
+        50% {
+            transform: translateY(100%);
+        }
+    }
+
+    @keyframes marquee {
+        from {
+            transform: translateX(0);
+        }
+        to {
+            transform: translateX(-50%);
+        }
+    }
+
+    @keyframes pulse-ring {
+        0% {
+            transform: scale(0.8);
+            opacity: 0.9;
+        }
+        100% {
+            transform: scale(2.4);
+            opacity: 0;
+        }
+    }
+}
+
+/* Frosted panel: the default surface for cards and panels. */
+@utility glass {
+    background: linear-gradient(
+        160deg,
+        oklch(1 0 0 / 0.13),
+        oklch(1 0 0 / 0.05) 55%,
+        oklch(1 0 0 / 0.07)
+    );
+    -webkit-backdrop-filter: blur(var(--glass-blur, 20px)) saturate(170%);
+    backdrop-filter: blur(var(--glass-blur, 20px)) saturate(170%);
+    border: 1px solid oklch(1 0 0 / 0.16);
+    box-shadow:
+        inset 0 1px 0 0 oklch(1 0 0 / 0.22),
+        inset 0 0 32px 0 oklch(1 0 0 / 0.035),
+        0 32px 64px -32px oklch(0 0 0 / 0.75),
+        0 12px 24px -12px oklch(0 0 0 / 0.35);
+}
+
+/* Denser glass for text-heavy panels and the scrolled navbar. */
+@utility glass-strong {
+    background: linear-gradient(
+        160deg,
+        oklch(0.24 0.02 285 / 0.72),
+        oklch(0.17 0.02 285 / 0.6)
+    );
+    -webkit-backdrop-filter: blur(var(--glass-blur, 20px)) saturate(160%);
+    backdrop-filter: blur(var(--glass-blur, 20px)) saturate(160%);
+    border: 1px solid oklch(1 0 0 / 0.14);
+    box-shadow:
+        inset 0 1px 0 0 oklch(1 0 0 / 0.16),
+        0 32px 64px -32px oklch(0 0 0 / 0.8),
+        0 12px 24px -12px oklch(0 0 0 / 0.4);
+}
+
+/* Small floating chips, badges and pills. */
+@utility glass-thin {
+    background: oklch(1 0 0 / 0.1);
+    -webkit-backdrop-filter: blur(14px) saturate(180%);
+    backdrop-filter: blur(14px) saturate(180%);
+    border: 1px solid oklch(1 0 0 / 0.18);
+    box-shadow:
+        inset 0 1px 0 0 oklch(1 0 0 / 0.25),
+        0 10px 30px -12px oklch(0 0 0 / 0.55);
+}
+
+/* Chips over bright or saturated imagery: an ink veil instead of clear glass. */
+@utility glass-dark {
+    background: oklch(0.19 0.02 285 / 0.62);
+    -webkit-backdrop-filter: blur(14px) saturate(120%);
+    backdrop-filter: blur(14px) saturate(120%);
+    border: 1px solid oklch(1 0 0 / 0.14);
+    box-shadow:
+        inset 0 1px 0 0 oklch(1 0 0 / 0.14),
+        0 10px 30px -12px oklch(0 0 0 / 0.6);
+}
+
+/*
+ * Specular rim: a light-catching edge that brightens the top-left and
+ * bottom-right corners. The host element must be positioned; the rim is
+ * painted above the host's background but below all of its children.
+ */
+@utility glass-rim {
+    isolation: isolate;
+
+    &::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        border-radius: inherit;
+        padding: 1px;
+        background: linear-gradient(
+            135deg,
+            oklch(1 0 0 / 0.55),
+            oklch(1 0 0 / 0.08) 30%,
+            oklch(1 0 0 / 0) 55%,
+            oklch(1 0 0 / 0.08) 80%,
+            oklch(1 0 0 / 0.3)
+        );
+        -webkit-mask:
+            linear-gradient(#000 0 0) content-box,
+            linear-gradient(#000 0 0);
+        -webkit-mask-composite: xor;
+        mask:
+            linear-gradient(#000 0 0) content-box exclude,
+            linear-gradient(#000 0 0);
+        pointer-events: none;
+    }
+}
+
+/* Lift on hover, only for devices that actually hover. */
+@utility lift {
+    transition:
+        transform 380ms var(--ease-glass),
+        box-shadow 380ms var(--ease-glass),
+        background-color 380ms var(--ease-glass),
+        border-color 380ms var(--ease-glass);
+
+    @media (hover: hover) {
+        &:hover {
+            transform: translateY(-4px) scale(1.012);
+        }
+    }
+}
+
+/* Film grain overlay; keeps the gradients from looking like flat vectors. */
+@utility grain {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-size: 180px 180px;
+}
+
+@layer base {
+    html.landing-page {
+        background-color: var(--color-ink);
+        color-scheme: dark;
+        scroll-behavior: smooth;
+        scroll-padding-top: 6rem;
+    }
+
+    .landing {
+        --glass-blur: 14px;
+
+        @media (width >= 48rem) {
+            --glass-blur: 22px;
+        }
+    }
+
+    .landing ::selection {
+        background: oklch(0.86 0.075 82 / 0.35);
+        color: var(--color-bone);
+    }
+}
+
+/* Scroll-triggered entrance; `data-shown` is set by <Reveal>. */
+.reveal {
+    opacity: 0;
+    transform: translate3d(0, 28px, 0);
+    transition:
+        opacity 800ms var(--ease-glass),
+        transform 900ms var(--ease-glass);
+    transition-delay: var(--reveal-delay, 0ms);
+}
+
+.reveal[data-shown='true'] {
+    opacity: 1;
+    transform: none;
+}
+
+/* Browsers without backdrop-filter get solid, readable surfaces. */
+@supports not
+((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+    .glass,
+    .glass-thin,
+    .glass-dark {
+        background: oklch(0.23 0.02 285 / 0.94);
+    }
+
+    .glass-strong {
+        background: oklch(0.19 0.02 285 / 0.97);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html.landing-page {
+        scroll-behavior: auto;
+    }
+
+    .landing *,
+    .landing *::before,
+    .landing *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+
+    .reveal {
+        opacity: 1;
+        transform: none;
+    }
+}
