@@ -18,14 +18,7 @@ export const LandingLinksContext = createContext<LandingLinks>({
     signUp: '/register',
 });
 
-/** Auth-aware destinations; `start` is where "Start free trial" goes. */
+/** Auth-aware destinations for the navbar (log in, or the dashboard). */
 export function useLandingLinks() {
-    const links = useContext(LandingLinksContext);
-
-    return {
-        ...links,
-        start: links.signedIn
-            ? links.dashboard
-            : (links.signUp ?? links.signIn),
-    };
+    return useContext(LandingLinksContext);
 }

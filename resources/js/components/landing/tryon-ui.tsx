@@ -41,14 +41,14 @@ export function ScanOverlay({
                     <span
                         key={corner}
                         className={cn(
-                            'absolute size-[9%] min-h-3 min-w-3 border-champagne/80',
+                            'absolute size-[9%] min-h-3 min-w-3 border-mint/80',
                             corner,
                         )}
                     />
                 ))}
             </div>
             <div className="absolute inset-x-0 top-0 h-full animate-scan">
-                <div className="h-px w-full bg-[linear-gradient(90deg,transparent,oklch(0.86_0.075_82/0.9),transparent)] shadow-[0_0_18px_2px_oklch(0.86_0.075_82/0.45)]" />
+                <div className="h-px w-full bg-[linear-gradient(90deg,transparent,oklch(0.84_0.12_160/0.9),transparent)] shadow-[0_0_18px_2px_oklch(0.84_0.12_160/0.45)]" />
             </div>
         </div>
     );
@@ -75,13 +75,13 @@ export function FitChip({
     return (
         <div
             className={cn(
-                'flex items-center gap-2.5 rounded-[14px] px-3 py-2 text-left',
+                'flex items-center gap-2.5 rounded-[14px] px-3 py-2 text-start',
                 tone === 'dark' ? 'glass-dark' : 'glass-thin',
                 className,
             )}
         >
             {icon ? (
-                <span className="grid size-7 shrink-0 place-items-center rounded-[10px] bg-white/10 text-champagne">
+                <span className="grid size-7 shrink-0 place-items-center rounded-[10px] bg-white/10 text-mint">
                     {icon}
                 </span>
             ) : null}
@@ -106,17 +106,23 @@ export type Garment = {
     zoom?: number;
 };
 
-/** Row of garment thumbnails; the active one gets a champagne ring. */
+/**
+ * Row of garment thumbnails; the active one gets a mint ring. Each `label`
+ * is the thumbnail's alt text, or with `onSelect` its button's name through
+ * `selectLabel` (pass one from the caller's dictionary, e.g. "Try on {label}").
+ */
 export function GarmentRail({
     items,
     active = 0,
     onSelect,
+    selectLabel = (label) => label,
     className,
     thumbClassName,
 }: {
     items: Garment[];
     active?: number;
     onSelect?: (index: number) => void;
+    selectLabel?: (label: string) => string;
     className?: string;
     thumbClassName?: string;
 }) {
@@ -138,9 +144,7 @@ export function GarmentRail({
                 );
                 const frame = cn(
                     'relative aspect-[4/5] w-12 shrink-0 overflow-hidden rounded-[10px] ring-1 transition-[box-shadow,transform] duration-300 ease-glass',
-                    selected
-                        ? 'ring-2 ring-champagne'
-                        : 'opacity-70 ring-white/15',
+                    selected ? 'ring-2 ring-mint' : 'opacity-70 ring-white/15',
                     thumbClassName,
                 );
 
@@ -148,12 +152,12 @@ export function GarmentRail({
                     <button
                         key={item.label}
                         type="button"
-                        aria-label={`Try on ${item.label}`}
+                        aria-label={selectLabel(item.label)}
                         aria-pressed={selected}
                         onClick={() => onSelect(index)}
                         className={cn(
                             frame,
-                            'cursor-pointer hover:opacity-100 focus-visible:ring-2 focus-visible:ring-champagne focus-visible:outline-none',
+                            'cursor-pointer hover:opacity-100 focus-visible:ring-2 focus-visible:ring-mint focus-visible:outline-none',
                         )}
                     >
                         {thumb}
@@ -168,16 +172,19 @@ export function GarmentRail({
     );
 }
 
-/** Size recommendation: the recommended size is filled, with a confidence note. */
+/**
+ * Size recommendation: the recommended size is filled, with a confidence
+ * note under it (the caller's translated "96% fit confidence").
+ */
 export function SizeScale({
     sizes,
     recommended,
-    confidence,
+    note,
     className,
 }: {
     sizes: string[];
     recommended: string;
-    confidence: number;
+    note: ReactNode;
     className?: string;
 }) {
     return (
@@ -189,7 +196,7 @@ export function SizeScale({
                         className={cn(
                             'grid h-8 min-w-8 place-items-center rounded-[10px] px-2 text-xs font-medium tabular-nums',
                             size === recommended
-                                ? 'bg-champagne text-ink'
+                                ? 'bg-mint text-ink'
                                 : 'bg-white/[0.07] text-mist ring-1 ring-white/10',
                         )}
                     >
@@ -199,22 +206,9 @@ export function SizeScale({
             </div>
             <p className="flex items-center gap-1.5 text-[11px] text-mist">
                 <Check aria-hidden className="size-3 text-lagoon" />
-                {confidence}% fit confidence
+                {note}
             </p>
         </div>
-    );
-}
-
-/** A pulsing status dot, e.g. for "live" counters. */
-export function LiveDot({ className }: { className?: string }) {
-    return (
-        <span
-            aria-hidden
-            className={cn('relative inline-flex size-2', className)}
-        >
-            <span className="absolute inset-0 animate-pulse-ring rounded-full bg-lagoon" />
-            <span className="relative size-full rounded-full bg-lagoon" />
-        </span>
     );
 }
 

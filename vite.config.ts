@@ -21,8 +21,16 @@ export default defineConfig({
                     styles: ['normal', 'italic'],
                     preload: [{ weight: 500 }],
                 }),
+                // Arabic (the /ar pages): display beside Bodoni, text beside
+                // Instrument Sans. Arabic glyphs only, never preloaded: the
+                // English pages download them only if Arabic is on screen.
                 bunny('Amiri', {
                     weights: [400, 700],
+                    subsets: ['arabic'],
+                    preload: false,
+                }),
+                bunny('IBM Plex Sans Arabic', {
+                    weights: [400, 500, 600],
                     subsets: ['arabic'],
                     preload: false,
                 }),

@@ -1,31 +1,37 @@
-import { Link } from '@inertiajs/react';
 import { ArrowRight, ChevronLeft, ChevronRight, Play } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import type {
     CSSProperties,
     KeyboardEvent as ReactKeyboardEvent,
     PointerEvent as ReactPointerEvent,
 } from 'react';
+import { useI18n } from '@/hooks/use-i18n';
 import { cn } from '@/lib/utils';
+import { Accent } from '../accent';
 import { BRAND } from '../brand';
 import { IMAGES } from '../images';
-import { useLandingLinks } from '../links';
+import { useContent, useLanding } from '../landing-data';
+import { useOrderDialog } from '../order-dialog';
 import { Photo } from '../photo';
-import { Arabic, Container, cta, Glow, Reveal } from '../primitives';
-import { FitChip, LiveDot, ScanOverlay } from '../tryon-ui';
+import { Container, cta, Glow, Reveal } from '../primitives';
+import { FitChip, ScanOverlay } from '../tryon-ui';
 
-// Placeholder content: replace before launch.
-const LIVE = { tryOnsToday: 10284, stores: 140, countries: 6 };
-const LOOK = { number: '01', garment: 'Linen abaya, sand' };
-const READINGS = { size: '54', fit: 96, drape: 'Relaxed', render: '1.8 s' };
+// Placeholder content: replace before launch. The copy and the live badge's
+// figures come from the admin (landing.content, landing.stats); the lens
+// readings below are part of the artwork (their words: i18n/sections/hero.ts).
+const LOOK = { number: '17' };
+const READINGS = { size: '54', fit: 96, render: '1.8' };
 
 const HERO = IMAGES.hero.main;
 const HERO_WIDTHS = [640, 960, 1280, 1600, 2000, 2400];
 // Rendered width of the photo plane (it overhangs the viewport below lg).
 const HERO_SIZES = '(min-width: 1024px) 85vw, (min-width: 768px) 145vw, 150vw';
-const formatCount = new Intl.NumberFormat('en-US');
 
-/* Lens position along its track, 0 (left) to 1 (right). */
+/*
+ * Lens position along its track, 0 (left) to 1 (right). It starts by the
+ * outer edge and glides in towards the headline panel, so on the Arabic
+ * page, where the panel sits on the right, both are mirrored.
+ */
 const LENS_START = 0.86;
 const LENS_REST = 0.4;
 const LENS_STEP = 0.04;
@@ -40,6 +46,13 @@ const LENS_STEP = 0.04;
  *
  * cqw/cqh resolve against .hero-stage (a size container) inside the stage,
  * and against .hero-root (inline-size) for the headline panel.
+ *
+ * Right to left, the composition mirrors: the panel takes the right, the
+ * lens runs over the left half and the caption moves to the left margin.
+ * The photograph is never flipped: the plane is placed by the same rule
+ * (the model under the lens at rest, the photo reaching the outer edge),
+ * at the same scale as on the English page. Positions inside the stage are
+ * physical (left/right), so they mean the same thing in both directions.
  */
 const HERO_CSS = `
 .hero-root {
@@ -102,11 +115,19 @@ const HERO_CSS = `
 .hero-root .hero-chip {
     background: color-mix(in oklch, var(--color-ink-raised) 55%, transparent);
 }
+[dir='rtl'] .hero-root {
+    --pw: max(150cqw, calc(var(--lc) / 0.39), calc((100cqw - var(--lc)) / 0.61));
+}
+[dir='rtl'] .hero-caption {
+    left: auto;
+    right: calc(100cqw - var(--edge) + 14px);
+}
 @media (width >= 40rem) {
     .hero-root { --edge: 32px; }
 }
 @media (width >= 48rem) {
     .hero-root { --lw: 30cqw; --pw: max(104cqw, calc((100cqw - var(--lc)) / 0.39), calc(var(--lc) / 0.61)); }
+    [dir='rtl'] .hero-root { --pw: max(104cqw, calc(var(--lc) / 0.39), calc((100cqw - var(--lc)) / 0.61)); }
 }
 @media (width >= 64rem) {
     .hero-root {
@@ -127,6 +148,15 @@ const HERO_CSS = `
         -webkit-mask-image: linear-gradient(180deg, #000 72%, transparent 100%);
         mask-image: linear-gradient(180deg, #000 72%, transparent 100%);
     }
+    [dir='rtl'] .hero-root {
+        --tl: calc(var(--edge) + 16px);
+        --tr: calc(var(--edge) + var(--panel) + 72px);
+        --pw: max(75cqw, 115.5cqh, calc(var(--lc) / 0.39));
+    }
+    [dir='rtl'] .hero-feather {
+        -webkit-mask-image: linear-gradient(270deg, transparent, #000 30%);
+        mask-image: linear-gradient(270deg, transparent, #000 30%);
+    }
 }
 `;
 
@@ -142,7 +172,13 @@ type Figure = {
     shoulder: { y: number; from: number; to: number };
     /** Centre-front garment length, neckline to hem. */
     length: { x: number; from: number; to: number };
-    labels: { at: Point; text: string; align?: 'start' | 'end' }[];
+    /** Readings in centimetres; `end` sets the label to the left of its point. */
+    labels: {
+        at: Point;
+        kind: 'width' | 'length';
+        cm: number;
+        align?: 'start' | 'end';
+    }[];
 };
 
 /*
@@ -179,8 +215,8 @@ const FIGURES: Figure[] = [
         shoulder: { y: 0.49, from: 0.523, to: 0.638 },
         length: { x: 0.578, from: 0.51, to: 0.872 },
         labels: [
-            { at: [0.646, 0.49], text: '41 cm' },
-            { at: [0.59, 0.665], text: 'Length 137 cm' },
+            { at: [0.646, 0.49], kind: 'width', cm: 41 },
+            { at: [0.59, 0.665], kind: 'length', cm: 137 },
         ],
     },
     {
@@ -206,8 +242,8 @@ const FIGURES: Figure[] = [
         shoulder: { y: 0.462, from: 0.405, to: 0.525 },
         length: { x: 0.438, from: 0.49, to: 0.83 },
         labels: [
-            { at: [0.398, 0.462], text: '39 cm', align: 'end' },
-            { at: [0.449, 0.745], text: 'Length 142 cm' },
+            { at: [0.398, 0.462], kind: 'width', cm: 39, align: 'end' },
+            { at: [0.449, 0.745], kind: 'length', cm: 142 },
         ],
     },
 ];
@@ -218,18 +254,38 @@ const VB_H = Math.round(VB_W / HERO.aspect);
 const clamp01 = (value: number) =>
     Math.round(Math.min(1, Math.max(0, value)) * 1000) / 1000;
 
-const prefersReducedMotion = () =>
-    typeof window !== 'undefined' &&
-    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const REDUCED_MOTION = '(prefers-reduced-motion: reduce)';
+const subscribeReducedMotion = (onChange: () => void) => {
+    const media = window.matchMedia(REDUCED_MOTION);
+    media.addEventListener('change', onChange);
+
+    return () => media.removeEventListener('change', onChange);
+};
+const getReducedMotion = () => window.matchMedia(REDUCED_MOTION).matches;
+const getServerReducedMotion = () => false;
 
 export default function Hero() {
-    const [lens, setLens] = useState(() =>
-        prefersReducedMotion() ? LENS_REST : LENS_START,
+    const { t, isRtl } = useI18n();
+    // The page's language comes from the URL, so this is the same on the
+    // server and during hydration.
+    const lensStart = isRtl ? 1 - LENS_START : LENS_START;
+    const lensRest = isRtl ? 1 - LENS_REST : LENS_REST;
+    const reducedMotion = useSyncExternalStore(
+        subscribeReducedMotion,
+        getReducedMotion,
+        getServerReducedMotion,
     );
+    const [lensState, setLens] = useState(lensStart);
     const [intro, setIntro] = useState(true);
     const [photoReady, setPhotoReady] = useState(false);
     const [dragging, setDragging] = useState(false);
     const [touched, setTouched] = useState(false);
+    // Reduced motion skips the intro glide and starts at rest. Derived rather
+    // than used as the initial state, so the server render and hydration agree.
+    const lens =
+        reducedMotion && !touched && lensState === lensStart
+            ? lensRest
+            : lensState;
     const trackRef = useRef<HTMLDivElement>(null);
     const drag = useRef<{ x: number; from: number; run: number } | null>(null);
     const interacted = useRef(false);
@@ -291,7 +347,7 @@ export default function Hero() {
         const first = requestAnimationFrame(() => {
             second = requestAnimationFrame(() => {
                 if (!interacted.current) {
-                    setLens(LENS_REST);
+                    setLens(lensRest);
                 }
             });
         });
@@ -302,7 +358,7 @@ export default function Hero() {
             cancelAnimationFrame(second);
             window.clearTimeout(settle);
         };
-    }, [photoReady]);
+    }, [photoReady, lensRest]);
 
     const handleInteraction = () => {
         interacted.current = true;
@@ -390,7 +446,7 @@ export default function Hero() {
             style={
                 {
                     '--t': lens,
-                    '--rest': LENS_REST,
+                    '--rest': lensRest,
                     '--lens-ms': intro ? '1700ms' : '520ms',
                     '--lens-ease': intro
                         ? 'cubic-bezier(0.6, 0, 0.3, 1)'
@@ -403,8 +459,8 @@ export default function Hero() {
             </style>
 
             <Glow
-                color="coral"
-                className="bottom-[-12rem] left-[-14rem] hidden size-[40rem] opacity-30 lg:block"
+                color="jade"
+                className="-start-56 bottom-[-12rem] hidden size-[40rem] opacity-30 lg:block"
             />
 
             {/*
@@ -430,7 +486,7 @@ export default function Hero() {
                     <div className="hero-plane hero-feather">
                         <Photo
                             id={HERO.id}
-                            alt={HERO.alt}
+                            alt={t('hero.photoAlt')}
                             priority
                             widths={HERO_WIDTHS}
                             sizes={HERO_SIZES}
@@ -440,20 +496,21 @@ export default function Hero() {
                         />
                         <div
                             aria-hidden
-                            className="absolute inset-0 bg-champagne-deep opacity-30 mix-blend-multiply"
+                            className="absolute inset-0 bg-mint-deep opacity-30 mix-blend-multiply"
                         />
                     </div>
                     <div
                         aria-hidden
                         className="absolute inset-0 bg-linear-to-b from-ink/75 via-ink/0 via-24% to-transparent"
                     />
+                    {/* Shade under the panel, and a little at the outer edge. */}
                     <div
                         aria-hidden
-                        className="absolute inset-0 hidden bg-linear-to-r from-ink/85 via-ink/45 via-35% to-transparent to-60% lg:block"
+                        className="absolute inset-0 hidden bg-linear-to-r from-ink/85 via-ink/45 via-35% to-transparent to-60% lg:block rtl:bg-linear-to-l"
                     />
                     <div
                         aria-hidden
-                        className="absolute inset-0 hidden bg-linear-to-l from-ink/60 to-transparent to-14% lg:block"
+                        className="absolute inset-0 hidden bg-linear-to-l from-ink/60 to-transparent to-14% lg:block rtl:bg-linear-to-r"
                     />
                     <div
                         aria-hidden
@@ -477,7 +534,7 @@ export default function Hero() {
                             draggable={false}
                             className="size-full brightness-[.62] contrast-[1.5] grayscale"
                         />
-                        <div className="absolute inset-0 bg-[linear-gradient(172deg,var(--color-amethyst)_18%,var(--color-lagoon)_96%)] mix-blend-color" />
+                        <div className="absolute inset-0 bg-[linear-gradient(172deg,var(--color-jade)_18%,var(--color-lagoon)_96%)] mix-blend-color" />
                         <div className="absolute inset-0 bg-ink opacity-45 mix-blend-multiply" />
                         <div className="absolute inset-0 bg-linear-to-b from-transparent from-58% to-ink/55" />
                         <BodyMap />
@@ -490,7 +547,7 @@ export default function Hero() {
                 <div
                     ref={lensRef}
                     role="group"
-                    aria-label="Try-on lens"
+                    aria-label={t('hero.lensLabel')}
                     className={cn(
                         'hero-lens group/lens z-10 touch-pan-y select-none',
                         dragging ? 'cursor-grabbing' : 'cursor-grab',
@@ -503,40 +560,44 @@ export default function Hero() {
                 >
                     <div
                         aria-hidden
-                        className="glass-rim absolute inset-0 rounded-[32px] border border-white/25 shadow-[0_44px_90px_-36px_oklch(0_0_0/0.8),inset_0_0_42px_oklch(1_0_0/0.07)] ring-1 ring-lagoon/20 transition-[border-color] duration-[380ms] ease-glass ring-inset group-hover/lens:border-white/40 group-has-[:focus-visible]/lens:border-champagne/70"
+                        className="glass-rim absolute inset-0 rounded-[32px] border border-white/25 shadow-[0_44px_90px_-36px_oklch(0_0_0/0.8),inset_0_0_42px_oklch(1_0_0/0.07)] ring-1 ring-lagoon/20 transition-[border-color] duration-[380ms] ease-glass ring-inset group-hover/lens:border-white/40 group-has-[:focus-visible]/lens:border-mint/70"
                     >
                         <div className="absolute inset-0 overflow-hidden rounded-[32px]">
                             <ScanOverlay className="opacity-80" />
                             <div className="absolute inset-0 bg-[linear-gradient(118deg,oklch(1_0_0/0.16),oklch(1_0_0/0)_26%,oklch(1_0_0/0)_72%,oklch(1_0_0/0.07))]" />
                         </div>
-                        <p className="absolute top-[4.2%] left-1/2 -translate-x-1/2 text-[10px] font-medium tracking-[0.24em] whitespace-nowrap text-bone/75 uppercase">
-                            {BRAND.name} view
+                        <p className="absolute top-[4.2%] left-1/2 -translate-x-1/2 text-[10px] font-medium tracking-[0.24em] whitespace-nowrap text-bone/75 uppercase rtl:text-[11px] rtl:normal-case">
+                            {t('hero.lensView', { brand: BRAND.name })}
                         </p>
                     </div>
 
-                    <LiveBadge className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-[calc(100%+12px)] lg:right-5 lg:left-auto lg:translate-x-0 lg:-translate-y-1/2" />
+                    {/* Badge and readings sit on the lens's outer and inner
+                        sides; right to left they swap sides with it. */}
+                    <LiveBadge className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-[calc(100%+12px)] lg:right-5 lg:left-auto lg:translate-x-0 lg:-translate-y-1/2 lg:rtl:right-auto lg:rtl:left-5" />
 
                     <FitChip
-                        label="Size"
+                        label={t('hero.size')}
                         value={
                             <>
                                 {READINGS.size}
-                                <span className="ml-1.5 text-mist">
-                                    ({READINGS.fit}% fit)
+                                <span className="ms-1.5 text-mist">
+                                    {t('hero.fit', { fit: READINGS.fit })}
                                 </span>
                             </>
                         }
-                        className="hero-chip absolute top-[58%] left-1/2 -translate-x-1/2 whitespace-nowrap lg:top-[27%] lg:-left-14 lg:translate-x-0"
+                        className="hero-chip absolute top-[58%] left-1/2 -translate-x-1/2 text-start whitespace-nowrap lg:top-[27%] lg:-left-14 lg:translate-x-0 lg:rtl:right-[-3.5rem] lg:rtl:left-auto"
                     />
                     <FitChip
-                        label="Drape"
-                        value={READINGS.drape}
-                        className="hero-chip absolute top-[44%] -right-11 hidden lg:flex"
+                        label={t('hero.drape')}
+                        value={t('hero.drapeValue')}
+                        className="hero-chip absolute top-[44%] -right-11 hidden text-start lg:flex rtl:right-auto rtl:-left-11"
                     />
                     <FitChip
-                        label="Render"
-                        value={READINGS.render}
-                        className="hero-chip absolute top-[73%] -left-14 hidden lg:flex"
+                        label={t('hero.render')}
+                        value={t('hero.seconds', {
+                            seconds: READINGS.render,
+                        })}
+                        className="hero-chip absolute top-[73%] -left-14 hidden text-start lg:flex rtl:right-[-3.5rem] rtl:left-auto"
                     />
 
                     <p
@@ -546,19 +607,22 @@ export default function Hero() {
                             touched && 'opacity-0',
                         )}
                     >
-                        Drag the lens
+                        {t('hero.dragLens')}
                     </p>
 
+                    {/* The arrows show the lens's physical travel: left to
+                        right in both languages. */}
                     <div
                         role="slider"
+                        dir="ltr"
                         tabIndex={0}
-                        aria-label="Move the try-on lens"
+                        aria-label={t('hero.moveLens')}
                         aria-orientation="horizontal"
                         aria-valuemin={0}
                         aria-valuemax={100}
                         aria-valuenow={Math.round(lens * 100)}
                         onKeyDown={onKeyDown}
-                        className="absolute bottom-0 left-1/2 flex h-9 w-[4.5rem] -translate-x-1/2 translate-y-1/2 items-center justify-center gap-1.5 rounded-full text-bone glass-thin transition-[background-color,box-shadow] duration-[380ms] ease-glass group-hover/lens:bg-white/[0.18] focus-visible:ring-2 focus-visible:ring-champagne/80 focus-visible:ring-offset-2 focus-visible:ring-offset-ink focus-visible:outline-none"
+                        className="absolute bottom-0 left-1/2 flex h-9 w-[4.5rem] -translate-x-1/2 translate-y-1/2 items-center justify-center gap-1.5 rounded-full text-bone glass-thin transition-[background-color,box-shadow] duration-[380ms] ease-glass group-hover/lens:bg-white/[0.18] focus-visible:ring-2 focus-visible:ring-mint/80 focus-visible:ring-offset-2 focus-visible:ring-offset-ink focus-visible:outline-none"
                     >
                         <ChevronLeft aria-hidden className="size-4" />
                         <span aria-hidden className="h-3.5 w-px bg-white/30" />
@@ -566,15 +630,22 @@ export default function Hero() {
                     </div>
                 </div>
 
-                {/* Magazine caption, set in the right margin. */}
-                <p className="hero-caption absolute hidden items-center gap-4 text-kicker font-medium text-mist uppercase [writing-mode:vertical-rl] lg:flex lg:rotate-180">
+                {/* Magazine caption, set in the outer margin, rule at the
+                    foot. The rule's side is physical (dir="ltr"); the words
+                    keep the page's direction. */}
+                <p
+                    dir="ltr"
+                    className="hero-caption absolute hidden items-center gap-4 text-kicker font-medium text-mist uppercase [writing-mode:vertical-rl] lg:flex lg:rotate-180"
+                >
                     <span aria-hidden className="h-14 w-px bg-white/35" />
-                    <span>
-                        <span className="text-bone">Look {LOOK.number}</span>
+                    <span dir={isRtl ? 'rtl' : 'ltr'}>
+                        <span className="text-bone">
+                            {t('hero.look', { number: LOOK.number })}
+                        </span>
                         <span aria-hidden className="mx-2.5 text-white/35">
                             /
                         </span>
-                        {LOOK.garment}
+                        {t('hero.garment')}
                     </span>
                 </p>
             </div>
@@ -583,25 +654,23 @@ export default function Hero() {
 }
 
 function HeadlinePanel() {
-    const links = useLandingLinks();
+    const order = useOrderDialog();
+    const kicker = useContent('hero.kicker');
+    const title = useContent('hero.title');
+    const lede = useContent('hero.lede');
+    const primary = useContent('hero.cta_primary');
+    const secondary = useContent('hero.cta_secondary');
+    const points = [
+        useContent('hero.point_1'),
+        useContent('hero.point_2'),
+        useContent('hero.point_3'),
+    ].filter(Boolean);
 
     return (
         <div className="glass-rim pointer-events-auto relative w-full rounded-[32px] p-6 glass-strong sm:p-9 lg:w-[var(--panel)] lg:p-10">
             <Reveal delay={80}>
-                <p className="flex items-start gap-3 text-kicker font-medium text-smoke uppercase">
-                    <LiveDot className="mt-1 shrink-0" />
-                    <span className="flex flex-col gap-y-1 sm:flex-row sm:gap-x-2">
-                        <span>
-                            AI virtual try-on
-                            <span
-                                aria-hidden
-                                className="ml-2 hidden text-white/25 sm:inline"
-                            >
-                                ·
-                            </span>
-                        </span>
-                        <span>Online &amp; in store</span>
-                    </span>
+                <p className="text-kicker font-medium text-smoke uppercase">
+                    {kicker}
                 </p>
             </Reveal>
 
@@ -610,76 +679,57 @@ function HeadlinePanel() {
                     id="hero-title"
                     className="mt-6 font-display text-display-xl font-medium text-balance text-bone"
                 >
-                    Every screen is a{' '}
-                    <em className="font-normal text-champagne">
-                        fitting room.
-                    </em>
+                    <Accent text={title} className="font-normal text-mint" />
                 </h1>
-                <div className="mt-4 flex items-center gap-4">
-                    <span aria-hidden className="h-px flex-1 bg-white/12" />
-                    <Arabic className="text-xl leading-none text-champagne/85">
-                        {BRAND.taglineAr}
-                    </Arabic>
-                </div>
             </Reveal>
 
             <Reveal delay={240}>
                 <p className="mt-6 max-w-[33rem] text-[17px] leading-relaxed text-pretty text-mist">
-                    {BRAND.name} shows shoppers the abaya, the frames and the
-                    fit on themselves, before they buy. On your website, and on
-                    a touchscreen mirror in your store.
+                    {lede}
                 </p>
 
                 <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-                    <Link
-                        href={links.start}
+                    <a
+                        {...order.link({ source: 'hero' })}
                         className={cn(
-                            cta({ variant: 'gold', size: 'lg' }),
+                            cta({ variant: 'primary', size: 'lg' }),
                             'group/cta',
                         )}
                     >
-                        Start free trial
+                        {primary}
                         <ArrowRight
                             aria-hidden
-                            className="size-4 transition-transform duration-[380ms] ease-glass group-hover/cta:translate-x-0.5"
+                            className="size-4 transition-transform duration-[380ms] ease-glass group-hover/cta:translate-x-0.5 rtl:-scale-x-100 rtl:group-hover/cta:-translate-x-0.5"
                         />
-                    </Link>
+                    </a>
                     <a
                         href="#how-it-works"
                         className={cta({ variant: 'glass', size: 'lg' })}
                     >
                         <Play aria-hidden className="size-4" />
-                        Watch demo
+                        {secondary}
                     </a>
                 </div>
 
-                <p className="mt-5 flex flex-col gap-y-1 text-[13px] text-smoke sm:flex-row sm:flex-wrap">
-                    <span className="whitespace-nowrap">
-                        14-day trial
-                        <Dot />
-                        No card required
-                        <Dot className="hidden sm:inline" />
-                    </span>
-                    <span className="whitespace-nowrap">
-                        Live on Shopify in 10 minutes
-                    </span>
-                </p>
+                {points.length ? (
+                    <ul className="mt-5 flex flex-wrap gap-x-5 gap-y-1 text-[13px] text-smoke">
+                        {points.map((point) => (
+                            <li key={point} className="whitespace-nowrap">
+                                {point}
+                            </li>
+                        ))}
+                    </ul>
+                ) : null}
             </Reveal>
         </div>
     );
 }
 
-function Dot({ className }: { className?: string }) {
-    return (
-        <span aria-hidden className={cn('mx-2 text-white/25', className)}>
-            ·
-        </span>
-    );
-}
-
 /** "10,284 try-ons today", ticking up while the page is open. */
 function LiveBadge({ className }: { className?: string }) {
-    const [count, setCount] = useState(LIVE.tryOnsToday);
+    const { t, formatNumber } = useI18n();
+    const { stats } = useLanding();
+    const [count, setCount] = useState(stats.tryOnsToday);
 
     useEffect(() => {
         if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
@@ -697,20 +747,22 @@ function LiveBadge({ className }: { className?: string }) {
         <div
             aria-live="off"
             className={cn(
-                'hero-chip flex items-center gap-2.5 rounded-[14px] px-3.5 py-2 whitespace-nowrap glass-thin',
+                'hero-chip flex items-center rounded-[14px] px-3.5 py-2 whitespace-nowrap glass-thin',
                 className,
             )}
         >
-            <LiveDot />
             <span className="flex flex-col">
                 <span className="text-[13px] leading-snug text-bone">
                     <span className="font-medium tabular-nums">
-                        {formatCount.format(count)}
+                        {formatNumber(count)}
                     </span>{' '}
-                    try-ons today
+                    {t('hero.tryOnsToday')}
                 </span>
-                <span className="hidden text-[11px] leading-snug text-smoke lg:block">
-                    across {LIVE.stores} stores in {LIVE.countries} countries
+                <span className="text-[11px] leading-snug text-smoke">
+                    {t('hero.reach', {
+                        stores: stats.stores,
+                        countries: stats.countries,
+                    })}
                 </span>
             </span>
         </div>
@@ -719,6 +771,7 @@ function LiveBadge({ className }: { className?: string }) {
 
 /** Landmarks, shoulder width and centre-front length, per model. */
 function BodyMap() {
+    const { t } = useI18n();
     const x = (value: number) => value * VB_W;
     const y = (value: number) => value * VB_H;
     const at = ([px, py]: Point): CSSProperties => ({
@@ -754,7 +807,7 @@ function BodyMap() {
                             y2={y(figure.shoulder.y)}
                             vectorEffect="non-scaling-stroke"
                             strokeWidth={1}
-                            className="stroke-champagne"
+                            className="stroke-mint"
                         />
                         <line
                             x1={x(figure.length.x)}
@@ -764,7 +817,7 @@ function BodyMap() {
                             vectorEffect="non-scaling-stroke"
                             strokeWidth={1}
                             strokeDasharray="4 5"
-                            className="stroke-champagne"
+                            className="stroke-mint"
                         />
                     </g>
                 ))}
@@ -775,7 +828,7 @@ function BodyMap() {
                     {figure.joints.map((joint) => (
                         <span
                             key={joint.join()}
-                            className="absolute size-[7px] -translate-1/2 rounded-full border border-champagne bg-ink/70"
+                            className="absolute size-[7px] -translate-1/2 rounded-full border border-mint bg-ink/70"
                             style={at(joint)}
                         />
                     ))}
@@ -787,7 +840,7 @@ function BodyMap() {
                     ).map((tick) => (
                         <span
                             key={tick.join()}
-                            className="absolute h-2.5 w-px -translate-1/2 bg-champagne"
+                            className="absolute h-2.5 w-px -translate-1/2 bg-mint"
                             style={at(tick)}
                         />
                     ))}
@@ -799,21 +852,26 @@ function BodyMap() {
                     ).map((tick) => (
                         <span
                             key={tick.join()}
-                            className="absolute h-px w-2.5 -translate-1/2 bg-champagne"
+                            className="absolute h-px w-2.5 -translate-1/2 bg-mint"
                             style={at(tick)}
                         />
                     ))}
                     {figure.labels.map((label) => (
                         <span
-                            key={label.text}
+                            key={label.kind}
                             data-lens-label
                             className={cn(
-                                'absolute hidden -translate-y-1/2 rounded-[6px] bg-ink/60 px-1.5 py-0.5 text-[10px] leading-4 font-medium tracking-[0.14em] whitespace-nowrap text-champagne uppercase tabular-nums transition-opacity duration-300 ease-glass lg:block',
+                                'absolute hidden -translate-y-1/2 rounded-[6px] bg-ink/60 px-1.5 py-0.5 text-[10px] leading-4 font-medium tracking-[0.14em] whitespace-nowrap text-mint uppercase tabular-nums transition-opacity duration-300 ease-glass lg:block',
                                 label.align === 'end' && '-translate-x-full',
                             )}
                             style={at(label.at)}
                         >
-                            {label.text}
+                            {t(
+                                label.kind === 'width'
+                                    ? 'hero.width'
+                                    : 'hero.length',
+                                { cm: label.cm },
+                            )}
                         </span>
                     ))}
                 </div>

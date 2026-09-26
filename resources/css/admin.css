@@ -1,0 +1,67 @@
+/*
+ * Admin panel extras (resources/js/layouts/admin-layout.tsx adds
+ * `admin-panel` and `landing-page` to <html> while an admin page is shown).
+ * Everything else comes from landing.css utilities and Tailwind classes.
+ */
+
+/* Unlayered on purpose: sonner injects unlayered CSS at runtime. */
+/* Flash toasts (sonner, mounted in app.tsx): the landing's dense glass. */
+html.admin-panel [data-sonner-toast][data-styled='true'] {
+    --normal-bg: oklch(0.2 0.016 200 / 0.86);
+    --normal-border: oklch(1 0 0 / 0.14);
+    --normal-text: var(--color-bone);
+    --border-radius: 18px;
+    font-family: var(--font-sans);
+    font-size: 14px;
+    padding: 14px 16px;
+    gap: 10px;
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+    backdrop-filter: blur(20px) saturate(160%);
+    box-shadow:
+        inset 0 1px 0 0 oklch(1 0 0 / 0.16),
+        0 24px 48px -24px oklch(0 0 0 / 0.8);
+}
+
+html.admin-panel [data-sonner-toast] [data-description] {
+    color: var(--color-mist);
+}
+
+html.admin-panel [data-sonner-toast][data-type='success'] [data-icon] {
+    color: var(--color-mint);
+}
+
+html.admin-panel [data-sonner-toast][data-type='info'] [data-icon] {
+    color: var(--color-lagoon);
+}
+
+html.admin-panel [data-sonner-toast][data-type='warning'] [data-icon],
+html.admin-panel [data-sonner-toast][data-type='error'] [data-icon] {
+    color: var(--color-coral);
+}
+
+/* Inertia's progress bar: a mint hairline instead of the default grey. */
+html.admin-panel #nprogress .bar {
+    background: var(--color-mint) !important;
+}
+
+html.admin-panel #nprogress .peg {
+    box-shadow:
+        0 0 10px var(--color-mint),
+        0 0 5px var(--color-mint) !important;
+}
+
+/*
+ * The landing page scrolls smoothly to its anchors; the admin must not
+ * (Inertia's scroll reset between pages would glide). Anchors clear the
+ * phone's floating bar.
+ */
+html.admin-panel {
+    scroll-behavior: auto;
+    scroll-padding-top: 5.5rem;
+}
+
+@media (width >= 64rem) {
+    html.admin-panel {
+        scroll-padding-top: 1.5rem;
+    }
+}

@@ -7,42 +7,47 @@ import {
     useState,
     useSyncExternalStore,
 } from 'react';
-import type { MouseEvent, Ref } from 'react';
+import type { MouseEvent, ReactNode, Ref } from 'react';
+import { useI18n } from '@/hooks/use-i18n';
+import type { MessageKey } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { BRAND } from '../brand';
+import { LanguageSwitch } from '../language-switch';
+import { hasSection, useContent, useLanding } from '../landing-data';
 import { useLandingLinks } from '../links';
-import { Arabic, Container, Wordmark, cta } from '../primitives';
+import { useOrderDialog } from '../order-dialog';
+import { Container, Wordmark, cta } from '../primitives';
 
 /*
  * Fixed floating capsule. Links carry the number of the section they open
- * (the same "N° 03" the section header prints), and a single champagne bead
- * glides under whichever section is being read.
+ * (the same "N° 03" the section header prints), and a single mint bead
+ * glides under whichever section is being read. A section that renders
+ * nothing (no published looks, plans…) loses its link. Every "Order a
+ * device" opens the order pop-up; the anchors keep #order as their fallback.
+ * The language switch sits beside "Log in" on desktop and at the foot of
+ * the phone menu. On the Arabic page the capsule mirrors (wordmark on the
+ * right); the bead is placed by measurement, so it follows either way.
  */
 
 const NAV = [
-    {
-        id: 'how-it-works',
-        label: 'How it works',
-        labelAr: 'كيف يعمل',
-        index: '01',
-    },
-    { id: 'kiosk', label: 'Kiosk', labelAr: 'الكشك الذكي', index: '03' },
-    {
-        id: 'lookbook',
-        label: 'Lookbook',
-        labelAr: 'معرض الإطلالات',
-        index: '04',
-    },
-    { id: 'pricing', label: 'Pricing', labelAr: 'الأسعار', index: '06' },
-    {
-        id: 'integrations',
-        label: 'Developers',
-        labelAr: 'التكامل',
-        index: '07',
-    },
-] as const;
+    { id: 'how-it-works', label: 'common.sectionHowItWorks', index: '01' },
+    { id: 'kiosk', label: 'common.sectionKiosk', index: '03' },
+    { id: 'lookbook', label: 'common.sectionLookbook', index: '04' },
+    { id: 'pricing', label: 'common.sectionPricing', index: '06' },
+] as const satisfies readonly {
+    id: string;
+    label: MessageKey;
+    index: string;
+}[];
 
 type NavId = (typeof NAV)[number]['id'];
+
+/** The section links whose sections are on the page. */
+function useNavItems() {
+    const landing = useLanding();
+
+    return NAV.filter((item) => hasSection(landing, item.id));
+}
 
 /**
  * Every section on the page, in order. Sections that have no nav link
@@ -58,12 +63,27 @@ const SPY_IDS = [
     'partners',
     'stories',
     'pricing',
-    'integrations',
-    'demo',
+    'order',
 ] as const;
 
 const SCROLLED_AT = 24;
 const MENU_ID = 'site-menu';
+
+/**
+ * Where the section links point: '' on the landing page itself, '/' on a
+ * content page (/pages/{slug}), where they lead back to the landing.
+ */
+export type SectionBase = '' | '/';
+
+/**
+ * A section's link: "#pricing" on the landing page, the landing in the
+ * page's language from a content page ("/#pricing", "/ar#pricing").
+ */
+export function useSectionHref(base: SectionBase) {
+    const { localePath } = useI18n();
+
+    return (id: string) => (base ? localePath(`${base}#${id}`) : `#${id}`);
+}
 
 function subscribeToScroll(onChange: () => void) {
     window.addEventListener('scroll', onChange, { passive: true });
@@ -117,8 +137,13 @@ function useActiveSection(): NavId | null {
     return isNavId(current) ? current : null;
 }
 
-export default function Navbar() {
+export default function Navbar({ base = '' }: { base?: SectionBase }) {
+    const { t, localePath } = useI18n();
+    const sectionHref = useSectionHref(base);
     const links = useLandingLinks();
+    const order = useOrderDialog();
+    const orderLabel = useContent('order.cta_short');
+    const orderCompact = useContent('order.cta_compact');
     const scrolled = useSyncExternalStore(
         subscribeToScroll,
         isScrolled,
@@ -138,6 +163,16 @@ export default function Navbar() {
     const followMenuLink = () => {
         document.documentElement.style.overflow = '';
         setOpen(false);
+    };
+
+    // The menu's order link: close the menu in the same update that opens
+    // the pop-up, so the menu's scroll lock is released before the dialog
+    // takes its own. Focus parks on the menu button first, so it returns
+    // there (and not to the hidden menu) when the pop-up closes.
+    const orderFromMenu = () => {
+        setOpen(false);
+        menuButton.current?.focus({ preventScroll: true });
+        order.open({ source: 'mobile-menu' });
     };
 
     // While the menu is open: lock page scroll, close on Escape, and close
@@ -179,9 +214,9 @@ export default function Navbar() {
         <>
             <a
                 href="#top"
-                className="fixed top-3 left-3 z-[60] -translate-y-24 rounded-[14px] bg-champagne px-4 py-2.5 text-sm font-medium text-ink transition-transform duration-[380ms] ease-glass focus:translate-y-0 focus-visible:ring-2 focus-visible:ring-bone/80 focus-visible:outline-none"
+                className="fixed start-3 top-3 z-[60] -translate-y-24 rounded-[14px] bg-mint px-4 py-2.5 text-sm font-medium text-ink transition-transform duration-[380ms] ease-glass focus:translate-y-0 focus-visible:ring-2 focus-visible:ring-bone/80 focus-visible:outline-none"
             >
-                Skip to content
+                {t('navbar.skipToContent')}
             </a>
 
             <header className="pointer-events-none fixed inset-x-0 top-3 z-50">
@@ -207,7 +242,7 @@ export default function Navbar() {
                          */}
                         <div
                             aria-hidden
-                            className="absolute inset-0 rounded-[inherit] border border-white/[0.12] bg-[oklch(0.16_0.02_285/0.55)] shadow-[inset_0_1px_0_0_oklch(1_0_0/0.12)] backdrop-blur-[14px] backdrop-saturate-[1.6]"
+                            className="absolute inset-0 rounded-[inherit] border border-white/[0.12] bg-[oklch(0.16_0.02_200/0.55)] shadow-[inset_0_1px_0_0_oklch(1_0_0/0.12)] backdrop-blur-[14px] backdrop-saturate-[1.6]"
                         />
                         {/* Scrolled: dense glass with its shadow fades in over it. */}
                         <div
@@ -218,27 +253,52 @@ export default function Navbar() {
                             )}
                         />
 
-                        <div className="relative grid h-full grid-cols-[1fr_auto] items-center gap-4 pr-3 pl-4 sm:pl-5 lg:grid-cols-[auto_1fr_auto]">
-                            <a
-                                href="#top"
-                                aria-label={`${BRAND.name}, back to top`}
-                                className="justify-self-start rounded-[12px] py-1 focus-visible:ring-2 focus-visible:ring-champagne/70 focus-visible:outline-none"
-                            >
-                                <Wordmark />
-                            </a>
+                        <div className="relative grid h-full grid-cols-[1fr_auto] items-center gap-4 ps-4 pe-3 sm:ps-5 lg:grid-cols-[auto_1fr_auto]">
+                            {base ? (
+                                <Link
+                                    href={localePath('/')}
+                                    aria-label={t('common.brandHome', {
+                                        brand: BRAND.name,
+                                    })}
+                                    className="justify-self-start rounded-[12px] py-1 focus-visible:ring-2 focus-visible:ring-mint/70 focus-visible:outline-none"
+                                >
+                                    <Wordmark />
+                                </Link>
+                            ) : (
+                                <a
+                                    href="#top"
+                                    aria-label={t('common.brandTop', {
+                                        brand: BRAND.name,
+                                    })}
+                                    className="justify-self-start rounded-[12px] py-1 focus-visible:ring-2 focus-visible:ring-mint/70 focus-visible:outline-none"
+                                >
+                                    <Wordmark />
+                                </a>
+                            )}
 
-                            <DesktopLinks active={active} onPhoto={!scrolled} />
+                            <DesktopLinks
+                                base={base}
+                                active={active}
+                                onPhoto={!scrolled}
+                            />
 
                             <div className="flex items-center gap-1.5 justify-self-end">
+                                <LanguageSwitch
+                                    variant="navbar"
+                                    className={cn(
+                                        'hidden lg:inline-flex',
+                                        !scrolled && 'text-bone',
+                                    )}
+                                />
                                 {links.signedIn ? (
                                     <Link
                                         href={links.dashboard}
                                         className={cta({
-                                            variant: 'gold',
+                                            variant: 'primary',
                                             size: 'sm',
                                         })}
                                     >
-                                        Dashboard
+                                        {t('common.dashboard')}
                                     </Link>
                                 ) : (
                                     <>
@@ -253,17 +313,25 @@ export default function Navbar() {
                                                 !scrolled && 'text-bone',
                                             )}
                                         >
-                                            Log in
+                                            {t('common.logIn')}
                                         </Link>
-                                        <Link
-                                            href={links.start}
+                                        <a
+                                            {...order.link(
+                                                { source: 'navbar' },
+                                                sectionHref('order'),
+                                            )}
                                             className={cta({
-                                                variant: 'gold',
+                                                variant: 'primary',
                                                 size: 'sm',
                                             })}
                                         >
-                                            Get started
-                                        </Link>
+                                            <span className="sm:hidden">
+                                                {orderCompact}
+                                            </span>
+                                            <span className="hidden sm:inline">
+                                                {orderLabel}
+                                            </span>
+                                        </a>
                                     </>
                                 )}
 
@@ -277,9 +345,11 @@ export default function Navbar() {
                     </div>
 
                     <MobileMenu
+                        base={base}
                         open={open}
                         active={active}
                         onNavigate={followMenuLink}
+                        onOrder={orderFromMenu}
                     />
                 </Container>
             </header>
@@ -288,13 +358,18 @@ export default function Navbar() {
 }
 
 function DesktopLinks({
+    base,
     active,
     onPhoto,
 }: {
+    base: SectionBase;
     active: NavId | null;
     /** Over the hero photograph the quieter tones step up one level. */
     onPhoto: boolean;
 }) {
+    const { t } = useI18n();
+    const sectionHref = useSectionHref(base);
+    const items = useNavItems();
     const nav = useRef<HTMLElement>(null);
     const bead = useRef<HTMLSpanElement>(null);
 
@@ -352,32 +427,34 @@ function DesktopLinks({
     return (
         <nav
             ref={nav}
-            aria-label="Primary"
+            aria-label={t('navbar.primaryLabel')}
             className="relative hidden h-full items-center justify-self-center lg:flex"
         >
             <ul className="flex items-center">
-                {NAV.map((item) => {
+                {items.map((item) => {
                     const current = item.id === active;
 
                     return (
                         <li key={item.id}>
-                            <a
-                                href={`#${item.id}`}
+                            <SectionLink
+                                href={sectionHref(item.id)}
                                 aria-current={current ? 'true' : undefined}
                                 className={cn(
-                                    'group flex items-baseline rounded-[12px] px-3 py-2 text-sm transition-colors duration-[380ms] ease-glass focus-visible:ring-2 focus-visible:ring-champagne/70 focus-visible:outline-none xl:px-3.5',
+                                    'group flex items-baseline rounded-[12px] px-3 py-2 text-sm transition-colors duration-[380ms] ease-glass focus-visible:ring-2 focus-visible:ring-mint/70 focus-visible:outline-none xl:px-3.5',
                                     current || onPhoto
                                         ? 'text-bone'
                                         : 'text-mist hover:text-bone',
                                 )}
                             >
-                                <span data-label={item.id}>{item.label}</span>
+                                <span data-label={item.id}>
+                                    {t(item.label)}
+                                </span>
                                 <span
                                     aria-hidden
                                     className={cn(
-                                        'relative -top-[0.55em] ml-[3px] text-[9px] font-medium tracking-[0.06em] tabular-nums transition-colors duration-[380ms] ease-glass',
+                                        'relative -top-[0.55em] ms-[3px] text-[9px] font-medium tracking-[0.06em] tabular-nums transition-colors duration-[380ms] ease-glass rtl:ms-1',
                                         current
-                                            ? 'text-champagne'
+                                            ? 'text-mint'
                                             : onPhoto
                                               ? 'text-mist group-hover:text-bone'
                                               : 'text-smoke group-hover:text-mist',
@@ -385,7 +462,7 @@ function DesktopLinks({
                                 >
                                     {item.index}
                                 </span>
-                            </a>
+                            </SectionLink>
                         </li>
                     );
                 })}
@@ -393,7 +470,7 @@ function DesktopLinks({
             <span
                 ref={bead}
                 aria-hidden
-                className="pointer-events-none absolute bottom-[9px] left-0 size-1 rounded-full bg-champagne opacity-0 shadow-[0_0_10px_1px_oklch(0.86_0.075_82/0.55)] transition-[transform,opacity] duration-[520ms] ease-glass"
+                className="pointer-events-none absolute bottom-[9px] left-0 size-1 rounded-full bg-mint opacity-0 shadow-[0_0_10px_1px_oklch(0.84_0.12_160/0.55)] transition-[transform,opacity] duration-[520ms] ease-glass"
             />
         </nav>
     );
@@ -408,15 +485,17 @@ function MenuButton({
     open: boolean;
     onToggle: () => void;
 }) {
+    const { t } = useI18n();
+
     return (
         <button
             ref={ref}
             type="button"
             aria-expanded={open}
             aria-controls={MENU_ID}
-            aria-label={open ? 'Close menu' : 'Open menu'}
+            aria-label={t(open ? 'navbar.closeMenu' : 'navbar.openMenu')}
             onClick={onToggle}
-            className="ml-1 grid size-10 place-items-center rounded-[14px] bg-white/[0.06] text-bone ring-1 ring-white/[0.12] transition-colors duration-[380ms] ease-glass ring-inset hover:bg-white/[0.12] focus-visible:ring-2 focus-visible:ring-champagne/70 focus-visible:outline-none active:scale-[0.97] lg:hidden"
+            className="ms-1 grid size-10 place-items-center rounded-[14px] bg-white/[0.06] text-bone ring-1 ring-white/[0.12] transition-colors duration-[380ms] ease-glass ring-inset hover:bg-white/[0.12] focus-visible:ring-2 focus-visible:ring-mint/70 focus-visible:outline-none active:scale-[0.97] lg:hidden"
         >
             <span aria-hidden className="relative block h-3 w-[18px]">
                 <span
@@ -430,7 +509,7 @@ function MenuButton({
                         'absolute inset-x-0 bottom-0 h-[1.5px] rounded-full bg-current transition-[translate,rotate,scale] duration-[380ms] ease-glass',
                         open
                             ? '-translate-y-[5.25px] -rotate-45'
-                            : 'translate-x-[3.5px] scale-x-[0.6]',
+                            : 'translate-x-[3.5px] scale-x-[0.6] rtl:-translate-x-[3.5px]',
                     )}
                 />
             </span>
@@ -439,16 +518,28 @@ function MenuButton({
 }
 
 function MobileMenu({
+    base,
     open,
     active,
     onNavigate,
+    onOrder,
 }: {
+    base: SectionBase;
     open: boolean;
     active: NavId | null;
     onNavigate: () => void;
+    onOrder: () => void;
 }) {
+    const { t } = useI18n();
+    const sectionHref = useSectionHref(base);
     const links = useLandingLinks();
-    const handleClick = (event: MouseEvent<HTMLAnchorElement>) => {
+    const items = useNavItems();
+    const email = useContent('contact.email');
+    const orderLabel = useContent('order.cta_short');
+    const demoPrompt = useContent('order.demo_prompt');
+    const demoLink = useContent('order.menu_demo_link');
+    const demoSubject = useContent('order.demo_subject');
+    const handleClick = (event: MouseEvent) => {
         // Anchors keep their default behaviour; this only closes the menu.
         if (event.defaultPrevented) {
             return;
@@ -456,20 +547,39 @@ function MobileMenu({
 
         onNavigate();
     };
+    const handleOrder = (event: MouseEvent<HTMLAnchorElement>) => {
+        // New-tab and new-window clicks follow the #order fallback.
+        if (
+            event.defaultPrevented ||
+            event.button !== 0 ||
+            event.metaKey ||
+            event.ctrlKey ||
+            event.shiftKey ||
+            event.altKey
+        ) {
+            return;
+        }
+
+        event.preventDefault();
+        onOrder();
+    };
 
     return (
         <div
             id={MENU_ID}
             className={cn(
-                'glass-rim pointer-events-auto relative mt-2 max-h-[calc(100svh-6.5rem)] overflow-y-auto overscroll-contain rounded-[28px] glass-strong transition-[opacity,translate,visibility] duration-[380ms] ease-glass sm:ml-auto sm:max-w-[27rem] lg:hidden',
+                'glass-rim pointer-events-auto relative mt-2 max-h-[calc(100svh-6.5rem)] overflow-y-auto overscroll-contain rounded-[28px] glass-strong transition-[opacity,translate,visibility] duration-[380ms] ease-glass sm:ms-auto sm:max-w-[27rem] lg:hidden',
                 open
                     ? 'visible translate-y-0 opacity-100'
                     : 'invisible -translate-y-3 opacity-0',
             )}
         >
-            <nav aria-label="Sections" className="px-5 pt-3 sm:px-6">
+            <nav
+                aria-label={t('navbar.sectionsLabel')}
+                className="px-5 pt-3 sm:px-6"
+            >
                 <ol>
-                    {NAV.map((item, index) => {
+                    {items.map((item, index) => {
                         const current = item.id === active;
 
                         return (
@@ -487,36 +597,35 @@ function MobileMenu({
                                         : '0ms',
                                 }}
                             >
-                                <a
-                                    href={`#${item.id}`}
+                                <SectionLink
+                                    href={sectionHref(item.id)}
                                     onClick={handleClick}
                                     aria-current={current ? 'true' : undefined}
-                                    className="group -mx-2 grid grid-cols-[2.5rem_1fr_auto] items-baseline gap-x-2 rounded-[14px] px-2 py-3.5 focus-visible:ring-2 focus-visible:ring-champagne/70 focus-visible:outline-none"
+                                    className="group -mx-2 grid grid-cols-[2.5rem_1fr] items-baseline gap-x-2 rounded-[14px] px-2 py-3.5 focus-visible:ring-2 focus-visible:ring-mint/70 focus-visible:outline-none"
                                 >
                                     <span
                                         className={cn(
                                             'text-[10px] font-medium tracking-[0.2em] tabular-nums transition-colors duration-[380ms] ease-glass',
                                             current
-                                                ? 'text-champagne'
+                                                ? 'text-mint'
                                                 : 'text-smoke',
                                         )}
                                     >
-                                        N° {item.index}
+                                        {t('common.sectionIndex', {
+                                            index: item.index,
+                                        })}
                                     </span>
                                     <span
                                         className={cn(
                                             'font-display text-[clamp(1.5rem,7vw,1.875rem)] leading-none font-medium tracking-[-0.015em] whitespace-nowrap transition-colors duration-[380ms] ease-glass',
                                             current
-                                                ? 'text-champagne'
-                                                : 'text-bone group-hover:text-champagne',
+                                                ? 'text-mint'
+                                                : 'text-bone group-hover:text-mint',
                                         )}
                                     >
-                                        {item.label}
+                                        {t(item.label)}
                                     </span>
-                                    <Arabic className="text-[15px] whitespace-nowrap text-smoke transition-colors duration-[380ms] ease-glass group-hover:text-mist sm:text-base">
-                                        {item.labelAr}
-                                    </Arabic>
-                                </a>
+                                </SectionLink>
                             </li>
                         );
                     })}
@@ -535,11 +644,11 @@ function MobileMenu({
                         href={links.dashboard}
                         onClick={onNavigate}
                         className={cn(
-                            cta({ variant: 'gold' }),
+                            cta({ variant: 'primary' }),
                             'w-full sm:hidden',
                         )}
                     >
-                        Dashboard
+                        {t('common.dashboard')}
                     </Link>
                 ) : (
                     <div className="grid grid-cols-2 gap-2 sm:hidden">
@@ -548,33 +657,59 @@ function MobileMenu({
                             onClick={onNavigate}
                             className={cta({ variant: 'glass' })}
                         >
-                            Log in
+                            {t('common.logIn')}
                         </Link>
-                        <Link
-                            href={links.start}
-                            onClick={onNavigate}
-                            className={cta({ variant: 'gold' })}
+                        <a
+                            href={sectionHref('order')}
+                            onClick={handleOrder}
+                            className={cta({ variant: 'primary' })}
                         >
-                            Get started
-                        </Link>
+                            {orderLabel}
+                        </a>
                     </div>
                 )}
 
-                <p className="mt-5 flex items-center justify-between gap-4 text-sm text-smoke sm:mt-0">
-                    <span>Prefer a walkthrough?</span>
-                    <a
-                        href="#demo"
-                        onClick={handleClick}
-                        className="group inline-flex items-center gap-1.5 rounded-[10px] text-bone transition-colors duration-[380ms] ease-glass hover:text-champagne focus-visible:ring-2 focus-visible:ring-champagne/70 focus-visible:outline-none"
-                    >
-                        Book a demo
-                        <ArrowRight
-                            aria-hidden
-                            className="size-3.5 transition-transform duration-[380ms] ease-glass group-hover:translate-x-0.5"
-                        />
-                    </a>
-                </p>
+                {email ? (
+                    <p className="mt-5 flex items-center justify-between gap-4 text-sm text-smoke sm:mt-0">
+                        <span>{demoPrompt}</span>
+                        <a
+                            href={`mailto:${email}?subject=${encodeURIComponent(demoSubject)}`}
+                            className="group inline-flex items-center gap-1.5 rounded-[10px] text-bone transition-colors duration-[380ms] ease-glass hover:text-mint focus-visible:ring-2 focus-visible:ring-mint/70 focus-visible:outline-none"
+                        >
+                            {demoLink}
+                            <ArrowRight
+                                aria-hidden
+                                className="size-3.5 transition-transform duration-[380ms] ease-glass group-hover:translate-x-0.5 rtl:-scale-x-100 rtl:group-hover:-translate-x-0.5"
+                            />
+                        </a>
+                    </p>
+                ) : null}
+
+                <div className="mt-4 border-t border-white/10 pt-1.5">
+                    <LanguageSwitch variant="menu" />
+                </div>
             </div>
         </div>
+    );
+}
+
+/**
+ * A section link: a plain anchor on the landing page, an Inertia visit back
+ * to it from a content page (Inertia scrolls to the #section on arrival).
+ */
+function SectionLink({
+    href,
+    ...props
+}: {
+    href: string;
+    className?: string;
+    children: ReactNode;
+    onClick?: (event: MouseEvent) => void;
+    'aria-current'?: 'true';
+}) {
+    return href.startsWith('/') ? (
+        <Link href={href} {...props} />
+    ) : (
+        <a href={href} {...props} />
     );
 }

@@ -1,0 +1,591 @@
+{
+    "locale": "en",
+    "content": {
+        "contact.email": "hello@tryon.app",
+        "contact.phone": "98084952",
+        "contact.whatsapp": "",
+        "contact.address": "",
+        "social.instagram": "",
+        "social.linkedin": "",
+        "social.x": "",
+        "social.youtube": "",
+        "hero.kicker": "In-store AI try-on",
+        "hero.title": "Every screen is a *fitting room.*",
+        "hero.lede": "TryOn is a touchscreen mirror for your shop floor. Shoppers see the coat, the abaya and the frames on themselves before they buy, without queueing for a fitting room. Our cloud app runs the device and keeps your catalogue on it.",
+        "hero.cta_primary": "Order a device",
+        "hero.cta_secondary": "Watch demo",
+        "hero.point_1": "Installed by our team",
+        "hero.point_2": "Cloud app included",
+        "hero.point_3": "Wherever your stores are",
+        "sections.how_it_works.label": "How it works",
+        "sections.how_it_works.title": "From the rail to *“it fits”* in four taps.",
+        "sections.how_it_works.lede": "No app, no measuring tape, no queue for the fitting room. Shoppers walk up to the mirror in your store.",
+        "sections.features.label": "On the shop floor",
+        "sections.features.title": "The fitting room, *without the queue.*",
+        "sections.features.lede": "One device on your shop floor, and our cloud app behind it. Shoppers try on everything you carry without waiting for a room, and you see which pieces they reach for.",
+        "sections.kiosk.label": "The kiosk",
+        "sections.kiosk.title": "The mirror that *sells.*",
+        "sections.kiosk.lede": "A 55-inch touchscreen that stands where the fitting-room queue used to be. Shoppers try on the whole catalogue, including sizes that aren't on the rail, and take the look home on their phone.",
+        "sections.kiosk.install_line": "Sold or leased, installed and calibrated by our team, for one store or a hundred.",
+        "sections.lookbook.label": "Lookbook",
+        "sections.lookbook.title": "Looks our shoppers *tried on* this week.",
+        "sections.lookbook.lede": "Abayas in Riyadh, silk in Dubai, frames in London. A few of the ten thousand looks tried on today.",
+        "sections.lookbook.hint": "Hover a look for before and after.",
+        "sections.lookbook.hint_touch": "Tap a look for before and after.",
+        "sections.lookbook.all_kicker": "This week’s edit",
+        "sections.lookbook.all_note": "Twelve cities, chosen from 71,400 try-ons this week.",
+        "sections.lookbook.all_unit": "looks",
+        "sections.lookbook.category_suffix": "this week",
+        "sections.lookbook.slot_title": "Your pieces, on *your* shoppers.",
+        "sections.lookbook.slot_link": "Order a device",
+        "sections.lookbook.footnote": "Photos shown with permission. Try-on renders are generated in under two seconds.",
+        "sections.lookbook.cadence": "New edit every Sunday",
+        "sections.stories.label": "Stories",
+        "sections.stories.title": "Store owners, *in their own words.*",
+        "sections.stories.lede": "An abaya house in Riyadh, an optician in Dubai, a boutique in Milan and a tailor in London, on their first season with TryOn.",
+        "sections.stories.footnote": "Figures reported by each retailer for their first season on TryOn.",
+        "sections.pricing.label": "Pricing",
+        "sections.pricing.title": "One device. *Your way to own it.*",
+        "sections.pricing.lede": "Every device comes with our cloud app. Our own team installs it in your store and calibrates it to your light and your floor.",
+        "sections.pricing.currency_label": "Currency",
+        "sections.pricing.note": "Prices per device, excluding VAT. Installation and calibration come with every device.",
+        "sections.pricing.custom_price": "Let’s talk",
+        "sections.pricing.faq_title": "Asked before every order",
+        "partners.kicker": "In boutiques and opticians",
+        "partners.title": "From NLV to *the world.*",
+        "order.kicker": "Order a device",
+        "order.title": "Your next customer is already *in front of a screen.*",
+        "order.lede": "Leave your email and our team will call within one business day to confirm how many devices you need, the installation date, and getting your catalogue onto TryOn.",
+        "order.cta": "Order a device",
+        "order.cta_short": "Order a device",
+        "order.cta_compact": "Order",
+        "order.dialog_title": "Order a *device.*",
+        "order.dialog_lede": "Tell us about your store. Our team will call within one business day to confirm the devices, the plan and an installation date.",
+        "order.consent": "NLV may contact me about this order and keep these details to handle it.",
+        "order.submit": "Send order request",
+        "order.success_title": "Thank you.",
+        "order.success_body": "Our team will contact you within one business day to confirm your order and book the installation.",
+        "order.email_prompt": "Prefer email?",
+        "order.demo_prompt": "Want to see it first?",
+        "order.demo_link": "Ask for an in-store demo",
+        "order.menu_demo_link": "Ask for a demo",
+        "order.demo_subject": "In-store demo request",
+        "footer.statement": "A try-on mirror for fashion and eyewear, *at home in any city.*",
+        "footer.company_line": "A product of NLV.",
+        "footer.tagline": "Every screen is a fitting room.",
+        "footer.fine_print": "Tried on in fourteen countries",
+        "seo.title": "TryOn: AI virtual try-on for fashion retail",
+        "seo.description": "TryOn is NLV's in-store AI try-on mirror: shoppers see clothes and eyewear on themselves before they buy. Device and cloud app, installed by our team worldwide."
+    },
+    "stats": {
+        "stores": 140,
+        "countries": 14,
+        "tryOnsYear": "2.1M",
+        "tryOnsToday": 10284
+    },
+    "stories": [
+        {
+            "id": 1,
+            "name": "Noura Al-Harbi",
+            "role": "Founder",
+            "store": "Rimal Abayas",
+            "city": "Riyadh",
+            "coordinates": "24.71° N · 46.68° E",
+            "quote": {
+                "before": "On Thursday evenings the fitting-room queue ran out of the door, and women left without trying anything. Now they try it on at the mirror first. Abaya sales ",
+                "accent": "rose by a third",
+                "after": " in one season."
+            },
+            "metric": {
+                "figure": "+33%",
+                "label": "Abaya sales",
+                "note": "in one season",
+                "short": "sales"
+            },
+            "portrait": {
+                "kind": "unsplash",
+                "id": "photo-1753486986377-1395ccfb4a8a"
+            },
+            "portraitAlt": "Portrait of Noura Al-Harbi, Founder at Rimal Abayas",
+            "focus": [0.53, 0.3],
+            "zoom": 1.35
+        },
+        {
+            "id": 2,
+            "name": "Khalid Mansour",
+            "role": "Retail Director",
+            "store": "Layan Optics",
+            "city": "Dubai",
+            "coordinates": "25.20° N · 55.27° E",
+            "quote": {
+                "before": "We put the kiosk next to the frame wall. People who would have tried three frames now ",
+                "accent": "try twenty",
+                "after": ", and they leave with a photo to show their family."
+            },
+            "metric": {
+                "figure": "×6",
+                "label": "Frames tried per visit",
+                "note": "at the frame wall",
+                "short": "frames tried"
+            },
+            "portrait": {
+                "kind": "unsplash",
+                "id": "photo-1629425733761-caae3b5f2e50"
+            },
+            "portraitAlt": "Portrait of Khalid Mansour, Retail Director at Layan Optics",
+            "focus": [0.45, 0.26],
+            "zoom": 1.1
+        },
+        {
+            "id": 3,
+            "name": "Elena Marchetti",
+            "role": "Store Manager",
+            "store": "Casa Lino",
+            "city": "Milan",
+            "coordinates": "45.46° N · 9.19° E",
+            "quote": {
+                "before": "Our clients used to take half the rail into the fitting room. Now they ",
+                "accent": "shortlist at the mirror",
+                "after": " and only try on what they’re sure of."
+            },
+            "metric": {
+                "figure": "−45%",
+                "label": "Fitting-room time",
+                "note": "per visit",
+                "short": "fitting time"
+            },
+            "portrait": {
+                "kind": "unsplash",
+                "id": "photo-1567532939604-b6b5b0db2604"
+            },
+            "portraitAlt": "Portrait of Elena Marchetti, Store Manager at Casa Lino",
+            "focus": [0.47, 0.5],
+            "zoom": 1.3
+        },
+        {
+            "id": 4,
+            "name": "James Okafor",
+            "role": "Owner",
+            "store": "Hollis & Vane",
+            "city": "London",
+            "coordinates": "51.51° N · 0.13° W",
+            "quote": {
+                "before": "Installation took an afternoon. By the weekend the mirror was ",
+                "accent": "the busiest corner of the shop",
+                "after": "."
+            },
+            "metric": {
+                "figure": "+24%",
+                "label": "Conversion on tried pieces",
+                "note": "in one season",
+                "short": "conversion"
+            },
+            "portrait": {
+                "kind": "unsplash",
+                "id": "photo-1588178454780-441fa5b99fa5"
+            },
+            "portraitAlt": "Portrait of James Okafor, Owner at Hollis & Vane",
+            "focus": [0.5, 0.31],
+            "zoom": 1.1
+        }
+    ],
+    "lookbook": {
+        "categories": [
+            {
+                "id": 1,
+                "slug": "abayas",
+                "name": "Abayas",
+                "note": "Sizes run 52 to 60. Navy and black satin led the week in Riyadh and Jeddah.",
+                "stat": {
+                    "figure": "54",
+                    "unit": "most tried size"
+                }
+            },
+            {
+                "id": 2,
+                "slug": "everyday",
+                "name": "Everyday",
+                "note": "The best-converting edit of the week: a denim jacket, a camel coat, a navy suit.",
+                "stat": {
+                    "figure": "38%",
+                    "unit": "went into the bag"
+                }
+            },
+            {
+                "id": 3,
+                "slug": "evening",
+                "name": "Evening",
+                "note": "Occasion wear peaks in the weeks before Eid, weddings and the winter holidays.",
+                "stat": {
+                    "figure": "Sat",
+                    "unit": "peak try-on day"
+                }
+            },
+            {
+                "id": 4,
+                "slug": "eyewear",
+                "name": "Eyewear",
+                "note": "Share of all frames tried this week. Clear acetate is climbing in Tokyo.",
+                "stat": {
+                    "figure": "41%",
+                    "unit": "tortoiseshell"
+                }
+            }
+        ],
+        "looks": [
+            {
+                "id": 1,
+                "category": "abayas",
+                "title": "Quilted abaya, navy",
+                "city": "Riyadh",
+                "seconds": 1.7,
+                "after": {
+                    "kind": "unsplash",
+                    "id": "photo-1762605135318-f34a993cbcf0"
+                },
+                "before": null,
+                "alt": "A woman in an open navy quilted abaya over a beige dress, seated beneath woven palm baskets",
+                "aspect": 0.67,
+                "focus": [0.42, 0.55]
+            },
+            {
+                "id": 2,
+                "category": "evening",
+                "title": "Silk gown, black",
+                "city": "Dubai",
+                "seconds": 1.9,
+                "after": {
+                    "kind": "unsplash",
+                    "id": "photo-1546190075-ed60eaed45e4"
+                },
+                "before": null,
+                "alt": "A woman in a flowing black gown on desert dunes, the train sweeping out in the wind",
+                "aspect": 0.8,
+                "focus": [0.42, 0.52]
+            },
+            {
+                "id": 3,
+                "category": "eyewear",
+                "title": "Round acetate, tortoise",
+                "city": "London",
+                "seconds": 1.6,
+                "after": {
+                    "kind": "unsplash",
+                    "id": "photo-1618077360395-f3068be8e001"
+                },
+                "before": null,
+                "alt": "A smiling man with a salt-and-pepper beard wearing round tortoiseshell glasses",
+                "aspect": 1,
+                "focus": [0.47, 0.45]
+            },
+            {
+                "id": 4,
+                "category": "everyday",
+                "title": "Denim jacket, stonewash",
+                "city": "New York",
+                "seconds": 1.5,
+                "after": {
+                    "kind": "unsplash",
+                    "id": "photo-1551537482-f2075a1d41f2"
+                },
+                "before": null,
+                "alt": "A young man with curly hair and glasses in a stonewashed denim jacket against a teal door",
+                "aspect": 0.67,
+                "focus": [0.5, 0.4]
+            },
+            {
+                "id": 5,
+                "category": "evening",
+                "title": "Chiffon maxi, teal",
+                "city": "Istanbul",
+                "seconds": 1.8,
+                "after": {
+                    "kind": "unsplash",
+                    "id": "photo-1609357605129-26f69add5d6e"
+                },
+                "before": null,
+                "alt": "A woman twirling in a long-sleeved teal chiffon maxi dress on a red-earth path",
+                "aspect": 0.67,
+                "focus": [0.47, 0.55]
+            },
+            {
+                "id": 6,
+                "category": "abayas",
+                "title": "Embroidered satin abaya",
+                "city": "Jeddah",
+                "seconds": 1.7,
+                "after": {
+                    "kind": "unsplash",
+                    "id": "photo-1739829417987-28d43f9a6b49"
+                },
+                "before": null,
+                "alt": "Close-up of a black satin abaya sleeve with gold and emerald beaded embroidery",
+                "aspect": 0.67,
+                "focus": [0.55, 0.5]
+            },
+            {
+                "id": 7,
+                "category": "everyday",
+                "title": "Camel coat, olive knit",
+                "city": "Milan",
+                "seconds": 1.8,
+                "after": {
+                    "kind": "unsplash",
+                    "id": "photo-1618244972963-dbee1a7edc95"
+                },
+                "before": null,
+                "alt": "A woman in a camel coat over an olive ribbed-knit midi dress on a city street",
+                "aspect": 0.67,
+                "focus": [0.5, 0.5]
+            },
+            {
+                "id": 8,
+                "category": "evening",
+                "title": "Kurta and sharara, mint",
+                "city": "Singapore",
+                "seconds": 1.9,
+                "after": {
+                    "kind": "unsplash",
+                    "id": "photo-1583391733956-3750e0ff4e8b"
+                },
+                "before": null,
+                "alt": "A woman in a mint embroidered kurta and tiered sharara with a sequinned dupatta",
+                "aspect": 0.8,
+                "focus": [0.55, 0.45]
+            },
+            {
+                "id": 9,
+                "category": "everyday",
+                "title": "Navy suit, slim",
+                "city": "Abu Dhabi",
+                "seconds": 1.6,
+                "after": {
+                    "kind": "unsplash",
+                    "id": "photo-1617137968427-85924c800a22"
+                },
+                "before": null,
+                "alt": "A bearded man walking toward the camera in a slim navy suit and open-collar white shirt",
+                "aspect": 0.67,
+                "focus": [0.48, 0.45]
+            },
+            {
+                "id": 10,
+                "category": "eyewear",
+                "title": "Clear acetate frames",
+                "city": "Tokyo",
+                "seconds": 1.8,
+                "after": {
+                    "kind": "unsplash",
+                    "id": "photo-1531384441138-2736e62e0919"
+                },
+                "before": null,
+                "alt": "A smiling man in clear optical frames, a navy beret and turtleneck, holding a film camera",
+                "aspect": 0.67,
+                "focus": [0.39, 0.35]
+            },
+            {
+                "id": 11,
+                "category": "evening",
+                "title": "Bisht, gold zari trim",
+                "city": "Doha",
+                "seconds": 1.7,
+                "after": {
+                    "kind": "unsplash",
+                    "id": "photo-1756412066366-b46dafaca253"
+                },
+                "before": null,
+                "alt": "Detail of a dark brown bisht with gold trim worn over a white thobe and red shemagh",
+                "aspect": 0.82,
+                "focus": [0.55, 0.5]
+            },
+            {
+                "id": 12,
+                "category": "eyewear",
+                "title": "Cat-eye optical, black",
+                "city": "Paris",
+                "seconds": 1.6,
+                "after": {
+                    "kind": "unsplash",
+                    "id": "photo-1552942362-50ecec295033"
+                },
+                "before": null,
+                "alt": "A woman looking back over her shoulder in dark cat-eye glasses, golden-hour sea behind her",
+                "aspect": 1.5,
+                "focus": [0.49, 0.53]
+            }
+        ]
+    },
+    "pricing": {
+        "currencies": [
+            {
+                "code": "USD",
+                "name": "US dollars"
+            },
+            {
+                "code": "EUR",
+                "name": "euros"
+            },
+            {
+                "code": "GBP",
+                "name": "pounds sterling"
+            },
+            {
+                "code": "AED",
+                "name": "UAE dirhams"
+            },
+            {
+                "code": "SAR",
+                "name": "Saudi riyals"
+            }
+        ],
+        "plans": [
+            {
+                "key": "buy",
+                "name": "Buy",
+                "blurb": "Own the device outright and pay for the app month by month.",
+                "priceMode": "one_off",
+                "prices": {
+                    "USD": 3900,
+                    "EUR": 3590,
+                    "GBP": 3090,
+                    "AED": 14300,
+                    "SAR": 14600
+                },
+                "priceCaption": "one-off, per device",
+                "detail": {
+                    "label": "Cloud app",
+                    "prices": {
+                        "USD": 79,
+                        "EUR": 75,
+                        "GBP": 65,
+                        "AED": 289,
+                        "SAR": 299
+                    },
+                    "value": null,
+                    "caption": "a month"
+                },
+                "featuresHeading": null,
+                "features": [
+                    "*12-month* warranty",
+                    "*Unlimited* try-ons",
+                    "Catalogue sync through the cloud app",
+                    "Email support"
+                ],
+                "ctaLabel": "Order a device",
+                "featured": false,
+                "badge": null,
+                "badgeNote": null
+            },
+            {
+                "key": "lease",
+                "name": "Lease",
+                "blurb": "Device, cloud app and servicing in one monthly fee.",
+                "priceMode": "monthly",
+                "prices": {
+                    "USD": 249,
+                    "EUR": 229,
+                    "GBP": 199,
+                    "AED": 919,
+                    "SAR": 939
+                },
+                "priceCaption": "a month, per device, all-in",
+                "detail": {
+                    "label": "Term",
+                    "prices": null,
+                    "value": "24",
+                    "caption": "months"
+                },
+                "featuresHeading": "Everything in Buy, plus",
+                "features": [
+                    "Servicing for the whole term",
+                    "Free replacement if a device fails",
+                    "Priority support"
+                ],
+                "ctaLabel": "Order a device",
+                "featured": true,
+                "badge": "Most chosen",
+                "badgeNote": "by 6 in 10 new stores"
+            },
+            {
+                "key": "chain",
+                "name": "Chain",
+                "blurb": "For groups fitting out several stores at once.",
+                "priceMode": "custom",
+                "prices": null,
+                "priceCaption": "custom pricing for your rollout",
+                "detail": {
+                    "label": "Devices",
+                    "prices": null,
+                    "value": "5",
+                    "caption": "or more"
+                },
+                "featuresHeading": null,
+                "features": [
+                    "Multi-store view in the cloud app",
+                    "On-site staff training",
+                    "A dedicated success manager",
+                    "*99.9%* uptime SLA"
+                ],
+                "ctaLabel": "Talk to sales",
+                "featured": false,
+                "badge": null,
+                "badgeNote": null
+            }
+        ],
+        "faqs": [
+            {
+                "id": 1,
+                "question": "What does the cloud app do?",
+                "answer": "It runs the try-on on the device, keeps your catalogue up to date and shows which pieces get tried on and which get bought."
+            },
+            {
+                "id": 2,
+                "question": "Do you keep customer photos?",
+                "answer": "No. Photos are deleted when the session ends. A look is kept only if the shopper saves it to her phone."
+            },
+            {
+                "id": 3,
+                "question": "How long does installation take?",
+                "answer": "One visit. Our team installs and calibrates the device, and it is ready for shoppers the same day."
+            }
+        ]
+    },
+    "pages": [
+        {
+            "title": "About",
+            "slug": "about",
+            "group": "company",
+            "url": "/pages/about"
+        },
+        {
+            "title": "Careers",
+            "slug": "careers",
+            "group": "company",
+            "url": "/pages/careers"
+        },
+        {
+            "title": "Press",
+            "slug": "press",
+            "group": "company",
+            "url": "/pages/press"
+        },
+        {
+            "title": "Privacy",
+            "slug": "privacy",
+            "group": "legal",
+            "url": "/pages/privacy"
+        },
+        {
+            "title": "Terms",
+            "slug": "terms",
+            "group": "legal",
+            "url": "/pages/terms"
+        },
+        {
+            "title": "Data processing",
+            "slug": "data-processing",
+            "group": "legal",
+            "url": "/pages/data-processing"
+        }
+    ]
+}

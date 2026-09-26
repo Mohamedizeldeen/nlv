@@ -1,118 +1,19 @@
-import { Link } from '@inertiajs/react';
-import { ArrowRight, ArrowUp, Check } from 'lucide-react';
+import { ArrowRight, Check } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 import type { CSSProperties, KeyboardEvent } from 'react';
+import { useI18n } from '@/hooks/use-i18n';
 import { cn } from '@/lib/utils';
-import { useLandingLinks } from '../links';
+import type { LandingPlan } from '@/types/landing';
+import { Accent } from '../accent';
+import { hasSection, useContent, useLanding } from '../landing-data';
+import { useOrderDialog } from '../order-dialog';
 import { Container, cta, Glow, Reveal, SectionHeader } from '../primitives';
 
-// Placeholder content: replace before launch.
-// Prices, plan limits, the "most chosen" share, the average cost of a
-// return and the kiosk hardware prices are all placeholders.
-
-const CURRENCIES = ['USD', 'SAR', 'AED'] as const;
-type Currency = (typeof CURRENCIES)[number];
-type Billing = 'monthly' | 'yearly';
-type Amounts = Record<Currency, number>;
-type PlanId = 'starter' | 'growth' | 'pro';
-
-/** Per-month prices; yearly shows the per-month equivalent. */
-const PRICES: Record<PlanId, Record<Billing, Amounts>> = {
-    starter: {
-        monthly: { USD: 79, SAR: 299, AED: 289 },
-        yearly: { USD: 65, SAR: 249, AED: 239 },
-    },
-    growth: {
-        monthly: { USD: 249, SAR: 939, AED: 919 },
-        yearly: { USD: 207, SAR: 779, AED: 765 },
-    },
-    pro: {
-        monthly: { USD: 699, SAR: 2629, AED: 2569 },
-        yearly: { USD: 582, SAR: 2189, AED: 2139 },
-    },
-};
-
-/** Average cost of one returned order: shipping both ways, inspection, repackaging. */
-const RETURN_COST: Amounts = { USD: 28, SAR: 106, AED: 103 };
-
-const KIOSK_HARDWARE: { buy: Amounts; lease: Amounts } = {
-    buy: { USD: 3900, SAR: 14600, AED: 14300 },
-    lease: { USD: 190, SAR: 715, AED: 699 },
-};
-
-const MOST_CHOSEN_NOTE = 'by 6 in 10 new stores';
-
-type Feature = { figure?: string; text: string };
-
-type Plan = {
-    id: PlanId;
-    name: string;
-    audience: string;
-    features: Feature[];
-};
-
-const PLANS: Plan[] = [
-    {
-        id: 'starter',
-        name: 'Starter',
-        audience: 'For a single online store finding its fit.',
-        features: [
-            { figure: '1,000', text: 'try-ons a month' },
-            { text: 'Web widget on every product page' },
-            { figure: '1', text: 'storefront' },
-            { text: 'Email support in Arabic and English' },
-        ],
-    },
-    {
-        id: 'growth',
-        name: 'Growth',
-        audience: 'For brands selling online and in one store.',
-        features: [
-            { figure: '10,000', text: 'try-ons a month' },
-            { figure: '1', text: 'kiosk licence' },
-            { text: 'Size advice from a single photo' },
-            { text: 'Shopify app and REST API' },
-            { text: 'Returns analytics by product and size' },
-            { text: 'Priority chat support' },
-        ],
-    },
-    {
-        id: 'pro',
-        name: 'Pro',
-        audience: 'For multi-store retailers and eyewear chains.',
-        features: [
-            { figure: '50,000', text: 'try-ons a month' },
-            { figure: 'Up to 5', text: 'kiosk licences' },
-            { text: 'Eyewear PD measurement' },
-            { text: 'SSO and audit log' },
-            { text: 'A dedicated success manager' },
-            { figure: '99.9%', text: 'uptime SLA' },
-        ],
-    },
-];
-
-const QUESTIONS = [
-    {
-        q: 'What counts as a try-on?',
-        a: 'One finished render: one shopper, one piece. Switching the size on a look you have already rendered doesn’t count again.',
-    },
-    {
-        q: 'Do you keep customer photos?',
-        a: 'No. Photos are deleted when the session ends. A render is kept only if the shopper saves the look.',
-    },
-    {
-        q: 'Can I cancel anytime?',
-        a: 'Yes, from your dashboard, with no call to book. Monthly plans stop at the end of the month; yearly plans simply don’t renew.',
-    },
-];
-
-const number = new Intl.NumberFormat('en-US');
-
-const CURRENCY_NAMES: Record<Currency, string> = {
-    USD: 'US dollars',
-    SAR: 'Saudi riyals',
-    AED: 'UAE dirhams',
-};
+// Plans, their prices per currency, the currencies on offer and the
+// questions come from the admin panel (`landing.pricing`). Prices are whole
+// amounts set by hand in every currency, never converted at a live rate.
+// Figures use Western digits in both languages ("3,900"). On the Arabic page
+// the code follows the figure ("3,900 USD"): the figure takes `rtl:-order-1`.
 
 function prefersReducedMotion() {
     return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -171,9 +72,12 @@ function Rolling({ text, className }: { text: string; className?: string }) {
     }, [text]);
 
     return (
+        // One inline-block per character: without dir="ltr" an Arabic line
+        // would lay them out right to left ("009,3" for 3,900).
         <span
             ref={ref}
             aria-hidden
+            dir="ltr"
             className={cn('inline-block whitespace-nowrap', className)}
         >
             {Array.from(text).map((char, index) => (
@@ -188,23 +92,26 @@ function Rolling({ text, className }: { text: string; className?: string }) {
 type Option<T extends string> = { value: T; label: string };
 
 /**
- * Glass segmented control with a sliding champagne indicator. It is a
+ * Glass segmented control with a sliding mint indicator. It is a
  * radio group: arrow keys move the choice, Tab leaves the group.
+ * The label sits beside the control where the row is wide (sm, xl) and
+ * above it where it is not (phones, the three-card row at lg), so five
+ * options keep cells wide enough to tap.
  */
 function Segmented<T extends string>({
     label,
     options,
     value,
     onChange,
-    note,
+    className,
 }: {
     label: string;
     options: readonly Option<T>[];
     value: T;
     onChange: (value: T) => void;
-    /** Small annotation attached above the last option. */
-    note?: string;
+    className?: string;
 }) {
+    const { isRtl } = useI18n();
     const labelId = useId();
     const buttons = useRef<(HTMLButtonElement | null)[]>([]);
     const count = options.length;
@@ -217,10 +124,11 @@ function Segmented<T extends string>({
         const last = count - 1;
         const forward = active === last ? 0 : active + 1;
         const back = active === 0 ? last : active - 1;
+        // Right to left, the next option sits to the left.
         const moves: Record<string, number> = {
-            ArrowRight: forward,
+            ArrowRight: isRtl ? back : forward,
             ArrowDown: forward,
-            ArrowLeft: back,
+            ArrowLeft: isRtl ? forward : back,
             ArrowUp: back,
             Home: 0,
             End: last,
@@ -239,35 +147,27 @@ function Segmented<T extends string>({
     const columns: CSSProperties = {
         gridTemplateColumns: `repeat(${count}, minmax(0, 1fr))`,
     };
-    const left = (active / count) * 100;
-    const right = ((count - 1 - active) / count) * 100;
+    // The indicator is clipped from the physical edges; the options run
+    // from the right on the Arabic page.
+    const before = (active / count) * 100;
+    const after = ((count - 1 - active) / count) * 100;
+    const left = isRtl ? after : before;
+    const right = isRtl ? before : after;
 
     return (
-        <div className="grid grid-cols-[5.5rem_minmax(0,1fr)] items-center gap-x-3">
+        <div
+            className={cn(
+                'grid gap-y-3 sm:grid-cols-[5.5rem_minmax(0,1fr)] sm:items-center sm:gap-x-3 lg:grid-cols-1 xl:grid-cols-[5.5rem_minmax(0,1fr)]',
+                className,
+            )}
+        >
             <span
                 id={labelId}
                 className="text-kicker font-medium text-mist uppercase"
             >
                 {label}
             </span>
-            <div className="relative w-full max-w-64 rounded-[16px] p-1 glass-thin has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-4 has-[:focus-visible]:outline-champagne/70 lg:max-w-[13.5rem]">
-                {note ? (
-                    // A dimension bracket over the last option, drawn like
-                    // the measurement lines elsewhere on the page.
-                    <span
-                        aria-hidden
-                        className="absolute bottom-full mb-1.5 flex flex-col items-center gap-1.5"
-                        style={{
-                            left: `calc(0.25rem + (100% - 0.5rem) * ${(count - 1) / count})`,
-                            width: `calc((100% - 0.5rem) / ${count})`,
-                        }}
-                    >
-                        <span className="text-[11px] leading-none font-medium tracking-[0.04em] whitespace-nowrap text-champagne">
-                            {note}
-                        </span>
-                        <span className="h-1.5 w-[calc(100%-1rem)] rounded-t-[2px] border-x border-t border-champagne/55" />
-                    </span>
-                ) : null}
+            <div className="relative w-full max-w-[20rem] rounded-[16px] p-1 glass-thin has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-4 has-[:focus-visible]:outline-mint/70">
                 <div
                     role="radiogroup"
                     aria-labelledby={labelId}
@@ -290,22 +190,19 @@ function Segmented<T extends string>({
                                 onClick={() => onChange(option.value)}
                                 onKeyDown={onKeyDown}
                                 className={cn(
-                                    'h-10 cursor-pointer rounded-[12px] px-3 text-sm font-medium tracking-[0.01em] transition-colors duration-300 ease-glass focus-visible:outline-none',
+                                    'h-10 cursor-pointer rounded-[12px] px-1 text-sm font-medium tracking-[0.01em] transition-colors duration-300 ease-glass focus-visible:outline-none',
                                     selected
                                         ? 'text-bone'
                                         : 'text-mist hover:bg-white/[0.06] hover:text-bone',
                                 )}
                             >
                                 {option.label}
-                                {index === count - 1 && note ? (
-                                    <span className="sr-only">, {note}</span>
-                                ) : null}
                             </button>
                         );
                     })}
                     <div
                         aria-hidden
-                        className="pointer-events-none absolute inset-0 grid rounded-[12px] bg-champagne shadow-[inset_0_1px_0_oklch(1_0_0/0.55)] transition-[clip-path] duration-500 ease-glass"
+                        className="pointer-events-none absolute inset-0 grid rounded-[12px] bg-mint shadow-[inset_0_1px_0_oklch(1_0_0/0.55)] transition-[clip-path] duration-500 ease-glass"
                         style={{
                             ...columns,
                             clipPath: `inset(0 ${right}% 0 ${left}% round 12px)`,
@@ -314,7 +211,7 @@ function Segmented<T extends string>({
                         {options.map((option) => (
                             <span
                                 key={option.value}
-                                className="grid h-10 place-items-center px-3 text-sm font-medium tracking-[0.01em] text-ink"
+                                className="grid h-10 place-items-center px-1 text-sm font-medium tracking-[0.01em] text-ink"
                             >
                                 {option.label}
                             </span>
@@ -326,16 +223,40 @@ function Segmented<T extends string>({
     );
 }
 
-/** A price set like a couture ticket: small currency code, Bodoni figure. */
+/**
+ * A price set like a couture ticket: small currency code, Bodoni figure.
+ * Without an amount the figure becomes an invitation to talk.
+ */
 function Price({
     amount,
     currency,
+    per,
     className,
 }: {
-    amount: number;
-    currency: Currency;
+    amount: number | null;
+    currency: string;
+    per: string;
     className?: string;
 }) {
+    const { t, formatNumber } = useI18n();
+    const custom = useContent('sections.pricing.custom_price');
+    // Steps down while three cards share a 1024px row, back up from xl.
+    const figure =
+        'font-display text-[3.5rem] leading-[0.9] font-medium tracking-[-0.02em] whitespace-nowrap text-bone sm:text-[3.75rem] lg:text-[2.75rem] xl:text-[3.75rem]';
+
+    if (amount === null) {
+        return (
+            <p className={className}>
+                <span className={cn(figure, 'block font-normal italic')}>
+                    {custom}
+                </span>
+                <span className="sr-only">
+                    {t('pricing.customPrice', { per })}
+                </span>
+            </p>
+        );
+    }
+
     return (
         <p className={cn('flex items-start gap-2.5', className)}>
             <Rolling
@@ -343,119 +264,102 @@ function Price({
                 className="mt-[0.3rem] text-[12px] font-medium tracking-[0.22em] text-mist"
             />
             <Rolling
-                text={number.format(amount)}
-                className="font-display text-[3.5rem] leading-[0.9] font-medium tracking-[-0.02em] text-bone tabular-nums sm:text-[3.75rem]"
+                text={formatNumber(amount)}
+                className={cn(figure, 'tabular-nums rtl:-order-1')}
             />
             <span className="sr-only">
-                {currency} {number.format(amount)} per month
+                {t('pricing.price', {
+                    currency,
+                    amount: formatNumber(amount),
+                    per,
+                })}
             </span>
         </p>
     );
 }
 
-/** The dagger note behind every "covers its cost" line. */
-function ReturnNote({
-    currency,
-    className,
-}: {
-    currency: Currency;
-    className?: string;
-}) {
-    return (
-        <p
-            className={cn(
-                'text-[13px] leading-relaxed text-pretty text-mist/85',
-                className,
-            )}
-        >
-            <span className="text-champagne">†</span> At an average of{' '}
-            <span className="text-bone tabular-nums">
-                {currency} {number.format(RETURN_COST[currency])}
-            </span>{' '}
-            per returned order: shipping both ways, inspection and repackaging.
-            Your own figure appears in the analytics dashboard from week one.
-        </p>
-    );
-}
-
-/** Line-drawn kiosk: a portrait screen on a slim foot. */
-function KioskGlyph({ className }: { className?: string }) {
-    return (
-        <svg
-            viewBox="0 0 24 46"
-            fill="none"
-            aria-hidden
-            className={cn('h-11 w-auto text-champagne', className)}
-        >
-            <rect
-                x="3.5"
-                y="1"
-                width="17"
-                height="33"
-                rx="3"
-                stroke="currentColor"
-                strokeWidth="1.2"
-            />
-            <rect
-                x="6.5"
-                y="5.5"
-                width="11"
-                height="22"
-                rx="1"
-                className="fill-champagne/15"
-            />
-            <circle cx="12" cy="3.4" r="0.7" fill="currentColor" />
-            <path
-                d="M12 34v8M6 44.5h12"
-                stroke="currentColor"
-                strokeWidth="1.2"
-                strokeLinecap="round"
-            />
-        </svg>
-    );
-}
-
-/** One plan. Growth is drawn as the arched fitting-room mirror. */
-function PlanCard({
-    plan,
-    billing,
+/**
+ * The ruled line under each price, like the second line of a price
+ * ticket: Buy's monthly app fee, Lease's term, Chain's device count.
+ * Nothing when the plan has no second line (or no amount in this currency).
+ */
+function Ledger({
+    detail,
     currency,
 }: {
-    plan: Plan;
-    billing: Billing;
-    currency: Currency;
+    detail: LandingPlan['detail'];
+    currency: string;
 }) {
-    const links = useLandingLinks();
-    const amount = PRICES[plan.id][billing][currency];
-    const breakEven = Math.ceil(amount / RETURN_COST[currency]);
-    const featured = plan.id === 'growth';
-    const titleId = `pricing-plan-${plan.id}`;
+    const { t, formatNumber } = useI18n();
+    const amount = detail.prices?.[currency];
+    const money = amount !== undefined;
+    const figure = money ? formatNumber(amount) : (detail.value ?? '');
 
-    const action =
-        plan.id === 'pro' ? (
-            <a
-                href="#demo"
-                className={cn(cta({ variant: 'glass', size: 'md' }), 'w-full')}
-            >
-                Talk to sales
-            </a>
-        ) : (
-            <Link
-                href={links.start}
-                className={cn(
-                    cta({
-                        variant: featured ? 'gold' : 'glass',
-                        size: 'md',
-                    }),
-                    'w-full',
-                )}
-            >
-                Start free trial
-                {featured ? (
-                    <ArrowRight aria-hidden className="size-4" />
+    if (!figure) {
+        return null;
+    }
+
+    return (
+        // Label and value share a line, except in the narrow three-card
+        // row at lg, where every card stacks them so the buttons stay level.
+        <div className="mt-6 flex items-baseline justify-between gap-4 border-t border-white/10 pt-4 lg:flex-col lg:items-start lg:gap-2.5 xl:flex-row xl:items-baseline xl:gap-4">
+            <dt className="text-kicker font-medium text-smoke uppercase">
+                {detail.label}
+            </dt>
+            <dd className="flex items-baseline gap-1.5 text-[14px] text-mist">
+                <span className="sr-only">
+                    {money
+                        ? t('pricing.money', { currency, amount: figure })
+                        : figure}
+                </span>
+                {money ? (
+                    <Rolling
+                        text={currency}
+                        className="text-[11px] font-medium tracking-[0.2em] text-mist"
+                    />
                 ) : null}
-            </Link>
-        );
+                <Rolling
+                    text={figure}
+                    className="font-display text-[1.625rem] leading-none font-medium text-bone tabular-nums rtl:-order-1"
+                />
+                {detail.caption ? <span>{detail.caption}</span> : null}
+            </dd>
+        </div>
+    );
+}
+
+/**
+ * A feature line: `*starred*` phrases (the figures: "*12-month* warranty")
+ * are set in medium bone. The space after a figure is set in its weight,
+ * so the words that follow sit exactly where the typeset list had them.
+ */
+function Feature({ text }: { text: string }) {
+    const parts = text.split(/\*([^*]+)\*/);
+
+    return parts.map((part, index) => {
+        if (index % 2) {
+            const spaced = parts[index + 1]?.startsWith(' ');
+
+            return (
+                <span
+                    key={index}
+                    className="font-medium text-bone tabular-nums"
+                >
+                    {part}
+                    {spaced ? ' ' : null}
+                </span>
+            );
+        }
+
+        return index > 0 && part.startsWith(' ') ? part.slice(1) : part;
+    });
+}
+
+/** One plan. The featured one is drawn as the arched fitting-room mirror. */
+function PlanCard({ plan, currency }: { plan: LandingPlan; currency: string }) {
+    const order = useOrderDialog();
+    const featured = plan.featured;
+    const titleId = `pricing-plan-${plan.key}`;
 
     return (
         <article
@@ -470,7 +374,7 @@ function PlanCard({
         >
             {featured ? null : (
                 // A faint ink veil: the side cards still refract the
-                // colour behind them but step back from Growth.
+                // colour behind them but step back from Lease.
                 <span
                     aria-hidden
                     className="pointer-events-none absolute inset-0 -z-10 rounded-[inherit] bg-ink/25"
@@ -478,13 +382,13 @@ function PlanCard({
             )}
             {featured ? (
                 <>
-                    {/* Champagne to rose rim, 1px, masked to a ring. */}
+                    {/* Two-green rim, 1px, masked to a ring: bright at the crown, fading down the sides. */}
                     <span
                         aria-hidden
                         className="pointer-events-none absolute -inset-px rounded-[inherit] p-px [-webkit-mask-composite:xor] [-webkit-mask:linear-gradient(#000_0_0)_content-box,linear-gradient(#000_0_0)] [mask:linear-gradient(#000_0_0)_content-box_exclude,linear-gradient(#000_0_0)]"
                         style={{
                             background:
-                                'linear-gradient(170deg, var(--color-champagne), oklch(0.8 0.1 355 / 0.85) 38%, oklch(0.86 0.075 82 / 0.18) 70%, oklch(0.8 0.1 355 / 0.45))',
+                                'linear-gradient(172deg, var(--color-mint), color-mix(in oklch, var(--color-lagoon) 75%, transparent) 36%, color-mix(in oklch, var(--color-mint) 16%, transparent) 68%, color-mix(in oklch, var(--color-lagoon) 45%, transparent))',
                         }}
                     />
                     {/* Light falling on the mirror: warm at the crown, one diagonal streak. */}
@@ -493,7 +397,7 @@ function PlanCard({
                         className="pointer-events-none absolute inset-0 -z-10 rounded-[inherit]"
                         style={{
                             background:
-                                'radial-gradient(95% 42% at 50% 0%, oklch(0.86 0.075 82 / 0.2), transparent 72%), linear-gradient(118deg, transparent 22%, oklch(1 0 0 / 0.055) 30%, transparent 39%), radial-gradient(80% 30% at 50% 100%, oklch(0.8 0.1 355 / 0.1), transparent 70%)',
+                                'radial-gradient(95% 42% at 50% 0%, color-mix(in oklch, var(--color-mint) 20%, transparent), transparent 72%), linear-gradient(118deg, transparent 22%, oklch(1 0 0 / 0.055) 30%, transparent 39%), radial-gradient(80% 30% at 50% 100%, color-mix(in oklch, var(--color-lagoon) 12%, transparent), transparent 70%)',
                         }}
                     />
                     {/* Inner bevel, like the frame of a mirror. */}
@@ -511,256 +415,267 @@ function PlanCard({
                 >
                     {plan.name}
                 </h3>
-                {featured ? (
+                {featured && (plan.badge || plan.badgeNote) ? (
                     <p className="absolute inset-x-0 top-[calc(var(--arch)*0.46)] flex flex-col items-center gap-1.5 text-center">
-                        <span className="flex items-center gap-2.5 text-kicker font-medium text-champagne uppercase">
-                            <span
-                                aria-hidden
-                                className="h-px w-5 bg-champagne/50"
-                            />
-                            Most chosen
-                            <span
-                                aria-hidden
-                                className="h-px w-5 bg-champagne/50"
-                            />
-                        </span>
-                        <span className="text-[12px] text-mist">
-                            {MOST_CHOSEN_NOTE}
-                        </span>
+                        {plan.badge ? (
+                            <span className="flex items-center gap-2.5 text-kicker font-medium text-mint uppercase">
+                                <span
+                                    aria-hidden
+                                    className="h-px w-5 bg-mint/50"
+                                />
+                                {plan.badge}
+                                <span
+                                    aria-hidden
+                                    className="h-px w-5 bg-mint/50"
+                                />
+                            </span>
+                        ) : null}
+                        {plan.badgeNote ? (
+                            <span className="text-[12px] text-mist">
+                                {plan.badgeNote}
+                            </span>
+                        ) : null}
                     </p>
                 ) : null}
                 <p className="mt-3 text-[15px] leading-snug text-pretty text-mist lg:min-h-[2lh]">
-                    {plan.audience}
+                    {plan.blurb}
                 </p>
 
-                <Price amount={amount} currency={currency} className="mt-7" />
-                <p className="mt-3 text-[13px] text-mist/90 tabular-nums">
-                    {billing === 'yearly' ? (
-                        <>
-                            per month · {currency} {number.format(amount * 12)}{' '}
-                            billed yearly
-                        </>
-                    ) : (
-                        'per month · billed monthly'
+                <Price
+                    amount={
+                        plan.priceMode === 'custom'
+                            ? null
+                            : (plan.prices?.[currency] ?? null)
+                    }
+                    currency={currency}
+                    per={plan.priceCaption}
+                    className="mt-7"
+                />
+                <p aria-hidden className="mt-3 text-[13px] text-mist/90">
+                    {plan.priceCaption}
+                </p>
+
+                <dl>
+                    <Ledger detail={plan.detail} currency={currency} />
+                </dl>
+
+                <a
+                    {...order.link({
+                        source: `pricing-${plan.key}`,
+                        plan: plan.key,
+                    })}
+                    className={cn(
+                        cta({
+                            variant: featured ? 'primary' : 'glass',
+                            size: 'md',
+                        }),
+                        'mt-6 w-full',
                     )}
-                </p>
-
-                <p className="mt-6 border-t border-white/10 pt-4 text-[14px] leading-snug text-mist">
-                    Covers its cost at{' '}
-                    <span className="font-medium text-champagne tabular-nums">
-                        {breakEven}
-                    </span>{' '}
-                    fewer returns a month
-                    <sup className="text-champagne">†</sup>
-                </p>
-
-                <div className="mt-6">{action}</div>
+                >
+                    {plan.ctaLabel}
+                    {featured ? (
+                        <ArrowRight
+                            aria-hidden
+                            className="size-4 rtl:-scale-x-100"
+                        />
+                    ) : null}
+                </a>
             </div>
 
-            <ul className="mt-8 border-t border-white/10 md:mt-0 md:border-t-0 lg:mt-8 lg:border-t">
-                {plan.features.map((feature) => (
-                    <li
-                        key={feature.text}
-                        className="flex items-start gap-3 border-b border-white/[0.07] py-3 text-[15px] leading-snug text-mist last:border-b-0"
-                    >
-                        <Check
-                            aria-hidden
-                            strokeWidth={2.25}
-                            className="mt-[3px] size-3.5 shrink-0 text-champagne"
-                        />
-                        <span>
-                            {feature.figure ? (
-                                <span className="font-medium text-bone tabular-nums">
-                                    {feature.figure}{' '}
-                                </span>
-                            ) : null}
-                            {feature.text}
-                        </span>
-                    </li>
-                ))}
-            </ul>
+            <div className="mt-8 border-t border-white/10 md:mt-0 md:border-t-0 lg:mt-8 lg:border-t">
+                {plan.featuresHeading ? (
+                    <p className="border-b border-white/[0.07] py-3 text-kicker font-medium text-mint uppercase">
+                        {plan.featuresHeading}
+                    </p>
+                ) : null}
+                <ul>
+                    {plan.features.map((feature, index) => (
+                        <li
+                            key={`${index}-${feature}`}
+                            className="flex items-start gap-3 border-b border-white/[0.07] py-3 text-[15px] leading-snug text-mist last:border-b-0"
+                        >
+                            <Check
+                                aria-hidden
+                                strokeWidth={2.25}
+                                className="mt-[3px] size-3.5 shrink-0 text-mint"
+                            />
+                            <span>
+                                <Feature text={feature} />
+                            </span>
+                        </li>
+                    ))}
+                </ul>
+            </div>
         </article>
     );
 }
 
+/** Line-drawn device: a portrait screen on a slim foot. */
+function DeviceGlyph({ className }: { className?: string }) {
+    return (
+        <svg
+            viewBox="0 0 24 46"
+            fill="none"
+            aria-hidden
+            className={cn('h-11 w-auto text-mint', className)}
+        >
+            <rect
+                x="3.5"
+                y="1"
+                width="17"
+                height="33"
+                rx="3"
+                stroke="currentColor"
+                strokeWidth="1.2"
+            />
+            <rect
+                x="6.5"
+                y="5.5"
+                width="11"
+                height="22"
+                rx="1"
+                className="fill-mint/15"
+            />
+            <circle cx="12" cy="3.4" r="0.7" fill="currentColor" />
+            <path
+                d="M12 34v8M6 44.5h12"
+                stroke="currentColor"
+                strokeWidth="1.2"
+                strokeLinecap="round"
+            />
+        </svg>
+    );
+}
+
 export default function Pricing() {
-    const [billing, setBilling] = useState<Billing>('monthly');
-    const [currency, setCurrency] = useState<Currency>('USD');
+    const landing = useLanding();
+
+    // No plans: no pricing section (and no links to it).
+    if (!hasSection(landing, 'pricing')) {
+        return null;
+    }
+
+    return <Plans />;
+}
+
+function Plans() {
+    const { t } = useI18n();
+    const { pricing } = useLanding();
+    const label = useContent('sections.pricing.label');
+    const title = useContent('sections.pricing.title');
+    const lede = useContent('sections.pricing.lede');
+    const note = useContent('sections.pricing.note');
+    const faqTitle = useContent('sections.pricing.faq_title');
+    const currencyLabel = useContent('sections.pricing.currency_label');
+    const { currencies, plans, faqs } = pricing;
+    const [picked, setCurrency] = useState(currencies[0]?.code ?? '');
+    // The first currency on offer, until the visitor picks another.
+    const currency = currencies.some(({ code }) => code === picked)
+        ? picked
+        : (currencies[0]?.code ?? '');
+    const currencyName = currencies.find(({ code }) => code === currency)?.name;
+    const archColumn = plans.findIndex((plan) => plan.featured);
 
     return (
         <section id="pricing" className="relative isolate py-24 md:py-36">
             <Glow
-                color="rose"
-                className="bottom-40 -left-48 size-[34rem] opacity-25"
+                color="lagoon"
+                className="bottom-40 -left-48 size-[34rem] opacity-20"
             />
             <Container>
                 <SectionHeader
                     index="06"
-                    label="Pricing"
-                    labelAr="الأسعار"
-                    title={
-                        <>
-                            Plans that pay for themselves <em>in returns.</em>
-                        </>
-                    }
-                    lede="Every plan includes the web widget, Arabic and English interfaces and the analytics dashboard. Kiosk hardware is sold or leased separately."
+                    label={label}
+                    title={<Accent text={title} />}
+                    lede={lede}
                 />
 
-                <p className="sr-only" aria-live="polite">
-                    Prices in {CURRENCY_NAMES[currency]}, billed {billing}.
-                </p>
+                {currencyName ? (
+                    <p className="sr-only" aria-live="polite">
+                        {t('pricing.pricesIn', { currency: currencyName })}
+                    </p>
+                ) : null}
 
-                {/* Ledger band: controls over Starter, the arch rises through the middle. */}
-                <Reveal className="mt-16 grid gap-y-6 md:mt-20 lg:grid-cols-3 lg:gap-x-8">
-                    <div className="flex flex-col gap-3 pt-6">
+                {/*
+                 * Ledger band: the currency switch and the note sit over the
+                 * two plain cards, so the arch rises between them wherever
+                 * the featured plan is (the middle, as seeded).
+                 */}
+                <Reveal className="mt-16 grid gap-y-6 md:mt-20 lg:mt-28 lg:grid-cols-3 lg:items-end lg:gap-x-8">
+                    {/* One currency on offer: nothing to switch. */}
+                    {currencies.length > 1 ? (
                         <Segmented
-                            label="Billing"
-                            value={billing}
-                            onChange={setBilling}
-                            note="2 months free"
-                            options={[
-                                { value: 'monthly', label: 'Monthly' },
-                                { value: 'yearly', label: 'Yearly' },
-                            ]}
-                        />
-                        <Segmented
-                            label="Currency"
+                            className={
+                                archColumn === 0 ? 'lg:col-start-2' : undefined
+                            }
+                            label={currencyLabel}
                             value={currency}
                             onChange={setCurrency}
-                            options={CURRENCIES.map((code) => ({
+                            options={currencies.map(({ code }) => ({
                                 value: code,
                                 label: code,
                             }))}
                         />
+                    ) : null}
+                    <div
+                        className={cn(
+                            'flex items-end gap-4',
+                            archColumn === 2
+                                ? 'lg:col-start-2'
+                                : 'lg:col-start-3',
+                        )}
+                    >
+                        <DeviceGlyph className="shrink-0" />
+                        <p className="max-w-[32ch] text-[13px] leading-relaxed text-mist">
+                            {note}
+                        </p>
                     </div>
-                    <p className="max-w-[30ch] text-[13px] leading-relaxed text-mist lg:col-start-3 lg:self-end">
-                        Prices per month, excluding VAT. Every plan starts with
-                        14 days free, no card required.
-                    </p>
                 </Reveal>
 
                 <div className="relative isolate mt-12 grid gap-6 [--arch:6.5rem] sm:[--arch:8rem] lg:mt-10 lg:grid-cols-3 lg:items-start lg:gap-8 lg:[--arch:9rem]">
                     <Glow
-                        color="champagne"
-                        className="-top-10 left-1/2 size-[30rem] -translate-x-1/2 opacity-35 lg:-top-24 lg:size-[36rem]"
+                        color="mint"
+                        className="-top-10 left-1/2 size-[30rem] -translate-x-1/2 opacity-30 lg:-top-24 lg:size-[36rem]"
                     />
-                    <Reveal className="order-2 lg:order-none">
-                        <PlanCard
-                            plan={PLANS[0]}
-                            billing={billing}
-                            currency={currency}
-                        />
-                        {/* The shortest column carries the footnote, as in print. */}
-                        <ReturnNote
-                            currency={currency}
-                            className="mt-8 hidden lg:block"
-                        />
-                    </Reveal>
-                    <Reveal
-                        delay={90}
-                        className="order-1 lg:order-none lg:-mt-[var(--arch)]"
-                    >
-                        <PlanCard
-                            plan={PLANS[1]}
-                            billing={billing}
-                            currency={currency}
-                        />
-                    </Reveal>
-                    <Reveal delay={180} className="order-3 lg:order-none">
-                        <PlanCard
-                            plan={PLANS[2]}
-                            billing={billing}
-                            currency={currency}
-                        />
-                    </Reveal>
+                    {plans.map((plan, index) => (
+                        <Reveal
+                            key={plan.key}
+                            delay={index * 90}
+                            // Phones stack the arch first; from lg it rises
+                            // above the row in its own column.
+                            className={
+                                plan.featured
+                                    ? 'order-1 lg:order-none lg:-mt-[var(--arch)]'
+                                    : 'order-2 lg:order-none'
+                            }
+                        >
+                            <PlanCard plan={plan} currency={currency} />
+                        </Reveal>
+                    ))}
                 </div>
 
-                <ReturnNote
-                    currency={currency}
-                    className="mt-10 max-w-[70ch] lg:hidden"
-                />
-
-                <Reveal className="mt-6 lg:mt-16">
-                    <div className="glass-rim relative grid items-center gap-x-8 gap-y-5 rounded-[24px] px-6 py-6 glass sm:px-8 lg:grid-cols-12 lg:py-5">
-                        <span
-                            aria-hidden
-                            className="pointer-events-none absolute inset-0 -z-10 rounded-[inherit] bg-ink/25"
-                        />
-                        <div className="flex items-center gap-5 lg:col-span-5">
-                            <KioskGlyph className="shrink-0" />
-                            <div>
-                                <p className="text-kicker font-medium text-mist uppercase">
-                                    Kiosk hardware
-                                </p>
-                                <p className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[15px] text-mist">
-                                    <span className="text-bone">From</span>
-                                    <span className="inline-flex items-baseline gap-1.5 text-bone">
-                                        <Rolling
-                                            text={currency}
-                                            className="text-[11px] font-medium tracking-[0.2em] text-mist"
-                                        />
-                                        <Rolling
-                                            text={number.format(
-                                                KIOSK_HARDWARE.buy[currency],
-                                            )}
-                                            className="font-display text-[1.75rem] leading-none font-medium tabular-nums"
-                                        />
-                                        <span className="sr-only">
-                                            {currency}{' '}
-                                            {number.format(
-                                                KIOSK_HARDWARE.buy[currency],
-                                            )}
-                                        </span>
-                                    </span>
-                                    <span>
-                                        or {currency}{' '}
-                                        <span className="text-bone tabular-nums">
-                                            {number.format(
-                                                KIOSK_HARDWARE.lease[currency],
-                                            )}
-                                        </span>{' '}
-                                        a month on lease
-                                    </span>
-                                </p>
-                            </div>
-                        </div>
-                        <p className="text-[15px] leading-relaxed text-pretty text-mist lg:col-span-5">
-                            Installed and calibrated by our own team in KSA,
-                            UAE, Qatar, Kuwait, Bahrain and Oman.
+                {faqs.length > 0 ? (
+                    <Reveal className="mt-20 grid gap-y-8 md:mt-28 lg:grid-cols-12 lg:gap-x-8">
+                        <p className="text-kicker font-medium text-smoke uppercase lg:col-span-3 lg:pt-5">
+                            {faqTitle}
                         </p>
-                        <a
-                            href="#kiosk"
-                            className={cn(
-                                cta({ variant: 'ghost', size: 'sm' }),
-                                'justify-self-start px-0 focus-visible:ring-offset-0 lg:col-span-2 lg:justify-self-end',
-                            )}
-                        >
-                            See the kiosk
-                            <ArrowUp aria-hidden className="size-4" />
-                        </a>
-                    </div>
-                </Reveal>
-
-                <Reveal className="mt-20 grid gap-y-8 md:mt-28 lg:grid-cols-12 lg:gap-x-8">
-                    <p className="text-kicker font-medium text-smoke uppercase lg:col-span-3 lg:pt-5">
-                        Asked at every demo
-                    </p>
-                    <dl className="grid gap-8 md:grid-cols-3 lg:col-span-9">
-                        {QUESTIONS.map((item) => (
-                            <div
-                                key={item.q}
-                                className="border-t border-white/10 pt-5"
-                            >
-                                <dt className="text-[16px] font-medium text-bone">
-                                    {item.q}
-                                </dt>
-                                <dd className="mt-2.5 text-[15px] leading-relaxed text-pretty text-mist">
-                                    {item.a}
-                                </dd>
-                            </div>
-                        ))}
-                    </dl>
-                </Reveal>
+                        <dl className="grid gap-8 md:grid-cols-3 lg:col-span-9">
+                            {faqs.map((item) => (
+                                <div
+                                    key={item.id}
+                                    className="border-t border-white/10 pt-5"
+                                >
+                                    <dt className="text-[16px] font-medium text-bone">
+                                        {item.question}
+                                    </dt>
+                                    <dd className="mt-2.5 text-[15px] leading-relaxed text-pretty text-mist">
+                                        {item.answer}
+                                    </dd>
+                                </div>
+                            ))}
+                        </dl>
+                    </Reveal>
+                ) : null}
             </Container>
         </section>
     );

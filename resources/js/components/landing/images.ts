@@ -1,5 +1,7 @@
 /**
- * Curated Unsplash photos for the landing page, grouped by section.
+ * Curated Unsplash photos for the landing page's designed artwork (the
+ * product mockups), grouped by section. The lookbook looks and the story
+ * portraits are managed in the admin panel and arrive with `landing`.
  * `aspect` is the original width / height; `focus` is the subject's
  * position (0..1 from top-left) for cropping and object-position.
  */
@@ -8,15 +10,6 @@ export type ImageRef = {
     alt: string;
     aspect: number;
     focus: [number, number];
-};
-
-export type LookbookCategory = 'abayas' | 'everyday' | 'evening' | 'eyewear';
-
-export type LookbookImage = ImageRef & {
-    category: LookbookCategory;
-    /** Garment name for the caption. */
-    look: string;
-    city: string;
 };
 
 export type GarmentImage = ImageRef & {
@@ -43,21 +36,9 @@ export const IMAGES = {
             aspect: 0.67,
             focus: [0.47, 0.5],
         },
-        kiosk: {
-            id: 'photo-1772474528936-4f1187eb1611',
-            alt: 'A woman in an open black abaya with a beaded floral sleeve over a camel dress',
-            aspect: 0.67,
-            focus: [0.47, 0.4],
-        },
     },
     features: {
-        online: {
-            id: 'photo-1638645940715-cda62d6d31f7',
-            alt: 'A young woman in a dusty-rose hijab holding up her phone to take a photo',
-            aspect: 1.45,
-            focus: [0.45, 0.35],
-        },
-        onlineResult: {
+        tryOnResult: {
             id: 'photo-1633450758429-f5d0ade72f97',
             alt: 'A woman in a caramel hijab, blush blazer and wide camel trousers carrying a pink handbag',
             aspect: 0.67,
@@ -88,151 +69,6 @@ export const IMAGES = {
             alt: 'A woman in a dusty-pink wool coat and paisley scarf standing in a vaulted stone arcade',
             aspect: 0.67,
             focus: [0.55, 0.45],
-        },
-    },
-    lookbook: [
-        {
-            id: 'photo-1762605135318-f34a993cbcf0',
-            alt: 'A woman in an open navy quilted abaya over a beige dress, seated beneath woven palm baskets',
-            aspect: 0.67,
-            focus: [0.42, 0.55],
-            category: 'abayas',
-            look: 'Quilted abaya, navy',
-            city: 'Riyadh',
-        },
-        {
-            id: 'photo-1546190075-ed60eaed45e4',
-            alt: 'A woman in a flowing black gown on desert dunes, the train sweeping out in the wind',
-            aspect: 0.8,
-            focus: [0.42, 0.52],
-            category: 'evening',
-            look: 'Silk gown, black',
-            city: 'Dubai',
-        },
-        {
-            id: 'photo-1618077360395-f3068be8e001',
-            alt: 'A smiling man with a salt-and-pepper beard wearing round tortoiseshell glasses',
-            aspect: 1,
-            focus: [0.47, 0.45],
-            category: 'eyewear',
-            look: 'Round acetate, tortoise',
-            city: 'Doha',
-        },
-        {
-            id: 'photo-1609357605129-26f69add5d6e',
-            alt: 'A woman twirling in a long-sleeved teal chiffon maxi dress on a red-earth path',
-            aspect: 0.67,
-            focus: [0.47, 0.55],
-            category: 'evening',
-            look: 'Chiffon maxi, teal',
-            city: 'Muscat',
-        },
-        {
-            id: 'photo-1739829417987-28d43f9a6b49',
-            alt: 'Close-up of a black satin abaya sleeve with gold and emerald beaded embroidery',
-            aspect: 0.67,
-            focus: [0.55, 0.5],
-            category: 'abayas',
-            look: 'Embroidered satin abaya',
-            city: 'Jeddah',
-        },
-        {
-            id: 'photo-1551537482-f2075a1d41f2',
-            alt: 'A young man with curly hair and glasses in a stonewashed denim jacket against a teal door',
-            aspect: 0.67,
-            focus: [0.5, 0.4],
-            category: 'everyday',
-            look: 'Denim jacket, stonewash',
-            city: 'Manama',
-        },
-        {
-            id: 'photo-1552942362-50ecec295033',
-            alt: 'A woman looking back over her shoulder in dark cat-eye glasses, golden-hour sea behind her',
-            aspect: 1.5,
-            focus: [0.49, 0.53],
-            category: 'eyewear',
-            look: 'Cat-eye optical, black',
-            city: 'Abu Dhabi',
-        },
-        {
-            id: 'photo-1583391733956-3750e0ff4e8b',
-            alt: 'A woman in a mint embroidered kurta and tiered sharara with a sequinned dupatta',
-            aspect: 0.8,
-            focus: [0.55, 0.45],
-            category: 'evening',
-            look: 'Kurta and sharara, mint',
-            city: 'Dubai',
-        },
-        {
-            id: 'photo-1618244972963-dbee1a7edc95',
-            alt: 'A woman in a camel coat over an olive ribbed-knit midi dress on a city street',
-            aspect: 0.67,
-            focus: [0.5, 0.5],
-            category: 'everyday',
-            look: 'Camel coat, olive knit',
-            city: 'Kuwait City',
-        },
-        {
-            id: 'photo-1756412066366-b46dafaca253',
-            alt: 'Detail of a dark brown bisht with gold trim worn over a white thobe and red shemagh',
-            aspect: 0.82,
-            focus: [0.55, 0.5],
-            category: 'evening',
-            look: 'Bisht, gold zari trim',
-            city: 'Riyadh',
-        },
-        {
-            id: 'photo-1617137968427-85924c800a22',
-            alt: 'A bearded man walking toward the camera in a slim navy suit and open-collar white shirt',
-            aspect: 0.67,
-            focus: [0.48, 0.45],
-            category: 'everyday',
-            look: 'Navy suit, slim',
-            city: 'Doha',
-        },
-        {
-            id: 'photo-1531384441138-2736e62e0919',
-            alt: 'A smiling man in clear optical frames, a navy beret and turtleneck, holding a film camera',
-            aspect: 0.67,
-            focus: [0.39, 0.35],
-            category: 'eyewear',
-            look: 'Clear acetate frames',
-            city: 'Jeddah',
-        },
-    ] satisfies LookbookImage[],
-    /** Portraits for the placeholder testimonials. */
-    testimonials: {
-        noura: {
-            id: 'photo-1753486986377-1395ccfb4a8a',
-            alt: 'Portrait of Noura Al-Harbi in a light taupe hijab and round glasses, smiling, hand on hip, against a white studio wall',
-            aspect: 0.8,
-            focus: [0.53, 0.3],
-        },
-        khalid: {
-            id: 'photo-1629425733761-caae3b5f2e50',
-            alt: 'Portrait of Khalid Mansour, bearded and smiling, arms crossed, in a navy sweater',
-            aspect: 0.67,
-            focus: [0.45, 0.26],
-        },
-        maryam: {
-            id: 'photo-1550546094-9835463f9f71',
-            alt: 'Portrait of Maryam Al-Kuwari in a light grey hijab, chin resting on her hand',
-            aspect: 1.5,
-            focus: [0.53, 0.35],
-        },
-        faisal: {
-            id: 'photo-1770153811870-a5813d834643',
-            alt: 'Portrait of Faisal Al-Rashidi, smiling, in an embroidered kuma cap and cream dishdasha',
-            aspect: 0.67,
-            focus: [0.52, 0.38],
-        },
-    },
-    integrations: {
-        product: {
-            id: 'photo-1623609163859-ca93c959b98a',
-            alt: 'Cream tulle dress with gold wheat embroidery on a mannequin against black',
-            aspect: 0.66,
-            focus: [0.5, 0.5],
         },
     },
     /** Product thumbnails for garment rails and grids inside the mockups. */
@@ -333,18 +169,12 @@ export const IMAGES = {
             aspect: 1.5,
             focus: [0.5, 0.65],
         },
-        menswear: {
-            id: 'photo-1441984904996-e0b6ba687e04',
-            alt: 'A warm menswear boutique with shirts and jackets on rails under pendant lamps',
-            aspect: 1.5,
-            focus: [0.5, 0.5],
-        },
     },
     finalCta: {
         backdrop: {
-            id: 'photo-1606941025295-1b9d04f653d7',
+            id: 'photo-1676696706907-0e04665b80bd',
             alt: '',
-            aspect: 0.67,
+            aspect: 1.78,
             focus: [0.5, 0.5],
         },
         looks: [
@@ -370,5 +200,5 @@ export const IMAGES = {
     },
 } satisfies Record<
     string,
-    Record<string, ImageRef | ImageRef[]> | LookbookImage[] | GarmentImage[]
+    Record<string, ImageRef | ImageRef[]> | GarmentImage[]
 >;

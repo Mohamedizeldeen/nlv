@@ -4,9 +4,10 @@
  */
 export const BRAND = {
     name: 'TryOn',
-    company: 'Northline Dev',
+    company: 'NLV',
     domain: 'tryon.app',
     email: 'hello@tryon.app',
     tagline: 'Every screen is a fitting room.',
-    taglineAr: 'كل شاشة غرفة قياس',
+    /** Brand logo in public/img (vector; logo-nlv.png is the original): white on transparent, 406×233. */
+    logo: { src: '/img/logo-nlv.svg', width: 406, height: 233 },
 } as const;

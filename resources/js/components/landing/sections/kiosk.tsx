@@ -1,29 +1,37 @@
 import { useId, useState } from 'react';
 import type { CSSProperties, PointerEvent, ReactNode } from 'react';
+import { useI18n } from '@/hooks/use-i18n';
 import { cn } from '@/lib/utils';
+import { Accent } from '../accent';
 import { BRAND } from '../brand';
 import { KioskFrame } from '../devices';
 import { IMAGES } from '../images';
+import { useContent } from '../landing-data';
+import { messageParts } from '../message-parts';
 import { Photo } from '../photo';
 import {
-    Arabic,
     Container,
     Glow,
     LogoMark,
     Reveal,
     SectionHeader,
 } from '../primitives';
-import { GarmentRail, LiveDot, QrGlyph, ScanOverlay } from '../tryon-ui';
+import { GarmentRail, QrGlyph, ScanOverlay } from '../tryon-ui';
 import type { Garment } from '../tryon-ui';
 
 // Placeholder content: replace before launch.
-// The installation ("Qasr Atelier, Doha"), the look on screen and the
-// hardware figures are illustrative only.
-const INSTALL = { store: 'Qasr Atelier', city: 'Doha', unit: 'Kiosk 02' };
-const ON_SCREEN = { look: 'Wool coat, blush', size: 'M', fit: 94 };
+// The installation ("Casa Lino, Milan"), the look on screen and the
+// hardware figures are illustrative only. Their words are in the section's
+// dictionary, i18n/sections/kiosk.ts, in both languages.
+const ON_SCREEN = { size: 'M', fit: 94 };
+
+/** The kiosk's languages, a product code shown as-is on both pages. */
+const LANGUAGES = ['EN', 'AR'] as const;
+
+type HotspotKey = 'camera' | 'screen' | 'qr' | 'base';
 
 type Hotspot = {
-    key: 'camera' | 'screen' | 'qr' | 'base';
+    key: HotspotKey;
     title: string;
     /** Label beside the dot below xl, where space is tight. */
     short: string;
@@ -34,79 +42,108 @@ type Hotspot = {
     cardY: number;
 };
 
-const HOTSPOTS: Hotspot[] = [
-    {
-        key: 'camera',
-        title: 'Depth camera',
-        short: 'Depth camera',
-        body: 'Reads posture and proportions from two metres away. Nothing is stored after the session.',
-        at: [0.34, 0.032],
-        cardY: 0.19,
-    },
-    {
-        key: 'screen',
-        title: '55″ 4K portrait touch',
-        short: '4K touch',
-        body: 'Anti-glare glass, bright enough for a sunlit mall atrium.',
-        at: [0.04, 0.3],
-        cardY: 0.405,
-    },
-    {
-        key: 'qr',
-        title: 'Take it home',
-        short: 'Take it home',
-        body: 'Scan to save the look, share it with family, or buy it online later.',
-        at: [0.04, 0.796],
-        cardY: 0.625,
-    },
-    {
-        key: 'base',
-        title: 'Your catalogue, synced',
-        short: 'Synced catalogue',
-        body: 'Stock and prices sync from Shopify every five minutes.',
-        at: [0.28, 0.93],
-        cardY: 0.84,
-    },
+type HotspotPlace = Pick<Hotspot, 'key' | 'at' | 'cardY'>;
+
+/*
+ * Hotspot geometry: the dots sit on the kiosk artwork and the stage keeps
+ * its left-to-right layout on both pages, so only the words change.
+ */
+const HOTSPOTS: HotspotPlace[] = [
+    { key: 'camera', at: [0.34, 0.032], cardY: 0.19 },
+    { key: 'screen', at: [0.04, 0.3], cardY: 0.405 },
+    { key: 'qr', at: [0.04, 0.796], cardY: 0.625 },
+    { key: 'base', at: [0.28, 0.93], cardY: 0.84 },
 ];
+
+/** Keeps a Latin product code ("55″ 4K") in one piece inside Arabic text. */
+function isolate(code: string, rtl: boolean) {
+    return rtl ? `\u2066${code}\u2069` : code;
+}
+
+/** The hotspots with their words, in the page's language. */
+function useHotspots(): Hotspot[] {
+    const { t, isRtl } = useI18n();
+    const words: Record<
+        HotspotKey,
+        Pick<Hotspot, 'title' | 'short' | 'body'>
+    > = {
+        camera: {
+            title: t('kiosk.cameraTitle'),
+            short: t('kiosk.cameraShort'),
+            body: t('kiosk.cameraBody'),
+        },
+        screen: {
+            title: t('kiosk.screenTitle', {
+                code: isolate('55″ 4K', isRtl),
+            }),
+            short: t('kiosk.screenShort'),
+            body: t('kiosk.screenBody'),
+        },
+        qr: {
+            title: t('kiosk.qrTitle'),
+            short: t('kiosk.qrShort'),
+            body: t('kiosk.qrBody'),
+        },
+        base: {
+            title: t('kiosk.cloudTitle'),
+            short: t('kiosk.cloudShort'),
+            body: t('kiosk.cloudBody'),
+        },
+    };
+
+    return HOTSPOTS.map((place) => ({ ...place, ...words[place.key] }));
+}
 
 /** A unit set smaller beside a display numeral, e.g. "1.8 s". */
 function Unit({ children }: { children: ReactNode }) {
-    return <span className="ml-1.5 text-[0.6em] text-mist">{children}</span>;
+    return <span className="ms-1.5 text-[0.6em] text-mist">{children}</span>;
 }
 
-const SPECS: { caption: string; value: ReactNode }[] = [
-    { caption: 'portrait touchscreen', value: '55″ 4K' },
-    {
-        caption: 'per render',
-        value: (
-            <>
-                1.8<Unit>s</Unit>
-            </>
-        ),
-    },
-    {
-        caption: 'bilingual interface',
-        value: (
-            <>
-                EN <span className="text-white/25">·</span>{' '}
-                <Arabic className="relative -top-[0.06em] text-[0.8em] font-normal">
-                    ع
-                </Arabic>
-            </>
-        ),
-    },
-    {
-        caption: 'footprint, or wall\u2011mounted',
-        value: (
-            <>
-                0.6
-                <Unit>
-                    m<sup className="text-[0.6em]">2</sup>
-                </Unit>
-            </>
-        ),
-    },
-];
+/** The hardware figures, in the page's language. */
+function useSpecs(): { key: string; caption: string; value: ReactNode }[] {
+    const { t } = useI18n();
+
+    return [
+        {
+            key: 'screen',
+            caption: t('kiosk.specScreen'),
+            value: <span className="bidi-ltr">55″ 4K</span>,
+        },
+        {
+            key: 'render',
+            caption: t('kiosk.specRender'),
+            value: (
+                <>
+                    1.8<Unit>{t('kiosk.seconds')}</Unit>
+                </>
+            ),
+        },
+        {
+            key: 'languages',
+            caption: t('kiosk.specLanguages'),
+            value: (
+                <span className="bidi-ltr">
+                    {`${LANGUAGES[0]} `}
+                    <span className="text-white/25">·</span>
+                    {` ${LANGUAGES[1]}`}
+                </span>
+            ),
+        },
+        {
+            key: 'footprint',
+            caption: t('kiosk.specFootprint'),
+            value: (
+                <>
+                    0.6
+                    <Unit>
+                        {t('kiosk.metres')}
+                        <sup className="text-[0.6em]">2</sup>
+                    </Unit>
+                </>
+            ),
+        },
+    ];
+}
 
 /*
  * Stage geometry. From md up the stage is exactly 16:9, so the kiosk, the
@@ -136,21 +173,21 @@ const kioskBox = (() => {
 
 const pct = (n: number) => `${(n * 100).toFixed(3)}%`;
 
-/** A garment rail whose first item is a detail crop of the look on screen. */
-const RAIL: Garment[] = [
-    {
-        id: IMAGES.kiosk.screen.id,
-        label: 'Wool coat · Blush',
-        focus: [0.57, 0.46],
-        zoom: 2.6,
-    },
-    IMAGES.garments[1],
-    IMAGES.garments[2],
-    IMAGES.garments[0],
-];
-
-function KioskScreen({ active }: { active: Hotspot['key'] | null }) {
+function KioskScreen({ active }: { active: HotspotKey | null }) {
+    const { t } = useI18n();
     const [fx, fy] = IMAGES.kiosk.screen.focus;
+    /** A garment rail whose first item is a detail crop of the look on screen. */
+    const rail: Garment[] = [
+        {
+            id: IMAGES.kiosk.screen.id,
+            label: t('kiosk.railCoat'),
+            focus: [0.57, 0.46],
+            zoom: 2.6,
+        },
+        { ...IMAGES.garments[1], label: t('kiosk.railTulle') },
+        { ...IMAGES.garments[2], label: t('kiosk.railKnit') },
+        { ...IMAGES.garments[0], label: t('kiosk.railAbaya') },
+    ];
 
     return (
         <>
@@ -165,41 +202,46 @@ function KioskScreen({ active }: { active: Hotspot['key'] | null }) {
                 )}
                 style={{ objectPosition: `${fx * 100}% ${fy * 100}%` }}
             />
-            <div className="absolute inset-0 bg-[linear-gradient(180deg,oklch(0.145_0.018_285/0.6),transparent_20%,transparent_55%,oklch(0.145_0.018_285/0.85))]" />
+            <div className="absolute inset-0 bg-[linear-gradient(180deg,oklch(0.145_0.018_200/0.6),transparent_20%,transparent_55%,oklch(0.145_0.018_200/0.85))]" />
             <ScanOverlay className="opacity-55" />
 
             <div className="absolute inset-x-[5cqw] top-[4.5cqw] flex items-center justify-between">
                 <span className="flex items-center gap-[1.4cqw] font-display text-[5cqw] leading-none font-medium text-bone">
-                    <LogoMark className="size-[5.4cqw]" />
+                    <LogoMark className="h-[3.4cqw]" />
                     {BRAND.name}
                 </span>
                 <span className="flex items-center gap-[1.2cqw] rounded-full bg-black/35 px-[2.2cqw] py-[0.9cqw] text-[3.2cqw] leading-none text-bone ring-1 ring-white/15">
-                    EN
+                    {LANGUAGES[0]}
                     <span className="text-white/30">/</span>
-                    <Arabic className="text-[3.8cqw] leading-none">ع</Arabic>
+                    {LANGUAGES[1]}
                 </span>
             </div>
 
             <div className="absolute top-[34%] right-[4cqw] flex flex-col rounded-[2.4cqw] bg-black/30 px-[2.4cqw] py-[1.6cqw] ring-1 ring-white/15 backdrop-blur-sm">
                 <span className="text-[2.5cqw] leading-tight tracking-[0.16em] text-smoke uppercase">
-                    Fit
+                    {t('kiosk.fit')}
                 </span>
                 <span className="text-[3.6cqw] leading-tight font-medium text-bone tabular-nums">
-                    {ON_SCREEN.size} · {ON_SCREEN.fit}%
+                    {messageParts(t, 'kiosk.sizeFit', {
+                        size: ON_SCREEN.size,
+                        fit: ON_SCREEN.fit,
+                    })}
                 </span>
             </div>
 
-            <div className="absolute inset-x-[3cqw] bottom-[3cqw] rounded-[3.4cqw] bg-[oklch(0.17_0.02_285/0.72)] p-[2.6cqw] ring-1 ring-white/12 backdrop-blur-md">
+            <div className="absolute inset-x-[3cqw] bottom-[3cqw] rounded-[3.4cqw] bg-[oklch(0.17_0.02_200/0.72)] p-[2.6cqw] ring-1 ring-white/12 backdrop-blur-md">
                 <p className="flex items-baseline justify-between gap-[2cqw] text-[3.3cqw] leading-none">
                     <span className="font-medium text-bone">
-                        {ON_SCREEN.look}
+                        {t('kiosk.look')}
                     </span>
-                    <span className="text-champagne tabular-nums">
-                        Size {ON_SCREEN.size}
+                    <span className="text-mint tabular-nums">
+                        {messageParts(t, 'kiosk.size', {
+                            size: ON_SCREEN.size,
+                        })}
                     </span>
                 </p>
                 <GarmentRail
-                    items={RAIL}
+                    items={rail}
                     active={0}
                     className="mt-[2.4cqw] gap-[1.8cqw]"
                     thumbClassName="w-[15cqw] rounded-[2cqw]"
@@ -209,16 +251,25 @@ function KioskScreen({ active }: { active: Hotspot['key'] | null }) {
     );
 }
 
+/**
+ * The QR code under the screen. It stays on the left on both pages: the
+ * "qr" hotspot and its highlight ring are drawn there.
+ */
 function KioskFooter() {
+    const { t, dir } = useI18n();
+
     return (
-        <div className="flex items-center gap-[3.6cqw] pr-[1cqw] pl-[7cqw]">
+        <div
+            dir="ltr"
+            className="flex items-center gap-[3.6cqw] pr-[1cqw] pl-[7cqw]"
+        >
             <QrGlyph className="size-[18cqw] shrink-0 rounded-[1.6cqw] p-[1.2cqw]" />
-            <span className="flex min-w-0 flex-col gap-[1.2cqw]">
+            <span dir={dir} className="flex min-w-0 flex-col gap-[1.2cqw]">
                 <span className="text-[4.3cqw] leading-[1.15] font-medium text-bone">
-                    Scan to take this look home
+                    {t('kiosk.scanTitle')}
                 </span>
                 <span className="text-[3.2cqw] leading-none text-smoke">
-                    Saved to your phone. No app.
+                    {t('kiosk.scanNote')}
                 </span>
             </span>
         </div>
@@ -226,10 +277,15 @@ function KioskFooter() {
 }
 
 export default function Kiosk() {
+    const { t } = useI18n();
+    const hotspots = useHotspots();
+    const label = useContent('sections.kiosk.label');
+    const title = useContent('sections.kiosk.title');
+    const lede = useContent('sections.kiosk.lede');
     const [active, setActive] = useState<number | null>(null);
     const baseId = useId();
     const descId = (i: number) => `${baseId}-callout-${i}`;
-    const activeKey = active === null ? null : HOTSPOTS[active].key;
+    const activeKey = active === null ? null : hotspots[active].key;
 
     const hoverProps = (i: number) => ({
         onPointerEnter: (e: PointerEvent) => {
@@ -254,20 +310,15 @@ export default function Kiosk() {
     return (
         <section id="kiosk" className="relative isolate py-24 md:py-36">
             <Glow
-                color="rose"
-                className="top-[42%] -right-40 size-[34rem] opacity-25"
+                color="lagoon"
+                className="-end-40 top-[42%] size-[34rem] opacity-25"
             />
             <Container>
                 <SectionHeader
                     index="03"
-                    label="The kiosk"
-                    labelAr="الكشك الذكي"
-                    title={
-                        <>
-                            The mirror that <em>sells.</em>
-                        </>
-                    }
-                    lede="A 55-inch touchscreen that stands where the fitting-room queue used to be. Shoppers try on the whole catalogue, including sizes that aren't on the rail, and take the look home on their phone."
+                    label={label}
+                    title={<Accent text={title} />}
+                    lede={lede}
                 />
 
                 <Reveal className="relative mt-14 md:mt-20">
@@ -275,7 +326,7 @@ export default function Kiosk() {
                     <div className="relative isolate aspect-[4/5] overflow-hidden rounded-[28px] bg-ink-raised md:aspect-video md:rounded-[32px]">
                         <Photo
                             id={IMAGES.kiosk.interior.id}
-                            alt={IMAGES.kiosk.interior.alt}
+                            alt={t('kiosk.interiorAlt')}
                             widths={[640, 960, 1280, 1600]}
                             sizes="(min-width: 1320px) 1224px, (min-width: 768px) 100vw, 220vw"
                             className="absolute inset-0 size-full origin-[50%_92%] scale-[1.32] object-[60%_100%] blur-[2px] md:scale-105 md:object-[50%_100%]"
@@ -283,24 +334,23 @@ export default function Kiosk() {
                         {/* Evening light: darken, warm, and hold the edges. */}
                         <div
                             aria-hidden
-                            className="absolute inset-0 bg-[oklch(0.16_0.02_285/0.52)]"
+                            className="absolute inset-0 bg-[oklch(0.16_0.02_200/0.52)]"
                         />
                         <div
                             aria-hidden
-                            className="absolute inset-0 bg-[radial-gradient(120%_90%_at_62%_38%,transparent_35%,oklch(0.145_0.018_285/0.75))]"
+                            className="absolute inset-0 bg-[radial-gradient(120%_90%_at_62%_38%,transparent_35%,oklch(0.145_0.018_200/0.75))]"
                         />
                         <div
                             aria-hidden
-                            className="absolute inset-0 hidden bg-[linear-gradient(90deg,oklch(0.145_0.018_285/0.7),oklch(0.145_0.018_285/0.2)_38%,transparent_55%)] xl:block"
+                            className="absolute inset-0 hidden bg-[linear-gradient(90deg,oklch(0.145_0.018_200/0.7),oklch(0.145_0.018_200/0.2)_38%,transparent_55%)] xl:block"
                         />
                         <Glow
-                            color="coral"
+                            color="jade"
                             className="top-[18%] left-[48%] z-0 size-[34%] opacity-25 mix-blend-soft-light"
                         />
 
                         <p className="sr-only">
-                            A {BRAND.name} kiosk standing in the store, its
-                            screen showing a shopper in a blush wool coat.
+                            {t('kiosk.stage', { brand: BRAND.name })}
                         </p>
 
                         {/* Kiosk, grounded on the floor plane. */}
@@ -310,7 +360,7 @@ export default function Kiosk() {
                         >
                             <KioskScene active={activeKey} />
 
-                            {HOTSPOTS.map((hotspot, i) => (
+                            {hotspots.map((hotspot, i) => (
                                 <HotspotButton
                                     key={hotspot.key}
                                     index={i}
@@ -332,25 +382,32 @@ export default function Kiosk() {
                         <LeaderLines active={active} />
 
                         <p className="absolute top-4 left-4 flex items-center gap-2 rounded-[12px] px-3 py-1.5 text-[10px] font-medium tracking-[0.16em] text-bone uppercase glass-thin md:top-6 md:left-6 md:text-[11px] xl:right-6 xl:left-auto">
-                            <LiveDot />
-                            {INSTALL.store}, {INSTALL.city}
+                            {messageParts(t, 'kiosk.storeCity', {
+                                store: t('kiosk.store'),
+                                city: t('kiosk.city'),
+                            })}
                             <span className="hidden text-smoke sm:inline">
-                                · {INSTALL.unit}
+                                {messageParts(t, 'kiosk.unitAfter', {
+                                    unit: t('kiosk.unit'),
+                                })}
                             </span>
                         </p>
 
                         <p className="absolute bottom-6 left-6 hidden max-w-[13rem] border-t border-white/20 pt-2.5 text-[12px] leading-snug text-balance text-mist md:block xl:right-6 xl:left-auto xl:max-w-[15rem] xl:text-right">
                             <span className="block text-[10px] tracking-[0.2em] text-smoke uppercase">
-                                On screen
+                                {t('kiosk.onScreen')}
                             </span>
-                            {ON_SCREEN.look}, size {ON_SCREEN.size}.{' '}
-                            {ON_SCREEN.fit}% fit, rendered in 1.8 s.
+                            {messageParts(t, 'kiosk.onScreenNote', {
+                                look: t('kiosk.look'),
+                                size: ON_SCREEN.size,
+                                fit: ON_SCREEN.fit,
+                            })}
                         </p>
                     </div>
 
                     {/* Callouts: on the stage from xl, a numbered list below it. */}
                     <ol className="mt-8 grid gap-x-8 sm:grid-cols-2 lg:grid-cols-4 xl:pointer-events-none xl:absolute xl:inset-0 xl:mt-0 xl:block">
-                        {HOTSPOTS.map((hotspot, i) => (
+                        {hotspots.map((hotspot, i) => (
                             <li
                                 key={hotspot.key}
                                 className="xl:pointer-events-auto xl:absolute xl:top-(--card-top) xl:left-(--card-left) xl:w-(--card-w) xl:-translate-y-1/2"
@@ -381,7 +438,7 @@ export default function Kiosk() {
     );
 }
 
-function KioskScene({ active }: { active: Hotspot['key'] | null }) {
+function KioskScene({ active }: { active: HotspotKey | null }) {
     const gradientId = useId();
     const fillId = `${gradientId}-fov-fill`;
     const rayId = `${gradientId}-fov-ray`;
@@ -414,7 +471,7 @@ function KioskScene({ active }: { active: Hotspot['key'] | null }) {
                 {[0, 1].map((ring) => (
                     <span
                         key={ring}
-                        className="absolute top-0 left-0 h-[34cqw] w-[90cqw] -translate-1/2 animate-pulse-ring rounded-[50%] border border-champagne/80"
+                        className="absolute top-0 left-0 h-[34cqw] w-[90cqw] -translate-1/2 animate-pulse-ring rounded-[50%] border border-mint/80"
                         style={{ animationDelay: `${ring * 1.2}s` }}
                     />
                 ))}
@@ -442,15 +499,15 @@ function KioskScene({ active }: { active: Hotspot['key'] | null }) {
             </KioskFrame>
 
             {/* Rim light from the store, and warm bounce off the floor. */}
-            <div className="absolute inset-x-0 top-0 h-[85.1%] rounded-[7%/4%] bg-[linear-gradient(180deg,oklch(1_0_0/0.1),transparent_5%,transparent_86%,oklch(0.86_0.075_82/0.08))] shadow-[inset_1.5px_0_0_oklch(1_0_0/0.14),inset_-1px_0_0_oklch(1_0_0/0.07),inset_0_1px_0_oklch(1_0_0/0.32)]" />
+            <div className="absolute inset-x-0 top-0 h-[85.1%] rounded-[7%/4%] bg-[linear-gradient(180deg,oklch(1_0_0/0.1),transparent_5%,transparent_86%,oklch(0.84_0.12_160/0.08))] shadow-[inset_1.5px_0_0_oklch(1_0_0/0.14),inset_-1px_0_0_oklch(1_0_0/0.07),inset_0_1px_0_oklch(1_0_0/0.32)]" />
 
             {/* Floor plate: rim, top face, the neck meeting it, a collar. */}
             <div className="absolute bottom-[0.3%] left-1/2 h-[29cqw] w-[68cqw] -translate-x-1/2">
-                <div className="absolute inset-x-0 bottom-0 h-[26cqw] rounded-[50%] bg-[linear-gradient(180deg,oklch(0.2_0.01_285),oklch(0.12_0.01_285))]" />
-                <div className="absolute inset-x-0 top-0 h-[26cqw] rounded-[50%] bg-[radial-gradient(ellipse_at_50%_30%,oklch(0.34_0.012_285),oklch(0.22_0.01_285)_55%,oklch(0.17_0.01_285))] shadow-[inset_0_1px_0_oklch(1_0_0/0.16)]" />
+                <div className="absolute inset-x-0 bottom-0 h-[26cqw] rounded-[50%] bg-[linear-gradient(180deg,oklch(0.2_0.01_200),oklch(0.12_0.01_200))]" />
+                <div className="absolute inset-x-0 top-0 h-[26cqw] rounded-[50%] bg-[radial-gradient(ellipse_at_50%_30%,oklch(0.34_0.012_200),oklch(0.22_0.01_200)_55%,oklch(0.17_0.01_200))] shadow-[inset_0_1px_0_oklch(1_0_0/0.16)]" />
             </div>
-            <div className="absolute top-[84%] bottom-[calc(16cqw+0.3%)] left-[44.5%] w-[11%] bg-[linear-gradient(90deg,oklch(0.16_0.01_285),oklch(0.3_0.01_285)_42%,oklch(0.15_0.01_285))]" />
-            <div className="absolute bottom-[calc(16cqw+0.3%)] left-1/2 h-[6cqw] w-[17cqw] -translate-x-1/2 translate-y-1/2 rounded-[50%] bg-[radial-gradient(ellipse_at_50%_35%,oklch(0.36_0.01_285),oklch(0.16_0.01_285)_75%)]" />
+            <div className="absolute top-[84%] bottom-[calc(16cqw+0.3%)] left-[44.5%] w-[11%] bg-[linear-gradient(90deg,oklch(0.16_0.01_200),oklch(0.3_0.01_200)_42%,oklch(0.15_0.01_200))]" />
+            <div className="absolute bottom-[calc(16cqw+0.3%)] left-1/2 h-[6cqw] w-[17cqw] -translate-x-1/2 translate-y-1/2 rounded-[50%] bg-[radial-gradient(ellipse_at_50%_35%,oklch(0.36_0.01_200),oklch(0.16_0.01_200)_75%)]" />
 
             {/* Glass sheen: the bright store reflected in the anti-glare glass. */}
             <div className="absolute top-[4.2%] left-[4%] h-[69%] w-[92%] rounded-[3%/1.7%] bg-[linear-gradient(118deg,oklch(1_0_0/0.13),oklch(1_0_0/0.03)_30%,transparent_44%,transparent_80%,oklch(1_0_0/0.05))]" />
@@ -458,13 +515,13 @@ function KioskScene({ active }: { active: Hotspot['key'] | null }) {
             {/* Active-state marks on the device itself. */}
             <div
                 className={cn(
-                    'absolute top-[4.2%] left-[4%] h-[69%] w-[92%] rounded-[3%/1.7%] ring-1 ring-champagne/80 transition-opacity duration-500 ease-glass',
+                    'absolute top-[4.2%] left-[4%] h-[69%] w-[92%] rounded-[3%/1.7%] ring-1 ring-mint/80 transition-opacity duration-500 ease-glass',
                     active === 'screen' ? 'opacity-100' : 'opacity-0',
                 )}
             />
             <div
                 className={cn(
-                    'absolute top-[75.2%] left-[10%] aspect-square w-[20cqw] rounded-[2.4cqw] ring-2 ring-champagne transition-opacity duration-500 ease-glass',
+                    'absolute top-[75.2%] left-[10%] aspect-square w-[20cqw] rounded-[2.4cqw] ring-2 ring-mint transition-opacity duration-500 ease-glass',
                     active === 'qr' ? 'opacity-100' : 'opacity-0',
                 )}
             />
@@ -506,14 +563,14 @@ function KioskScene({ active }: { active: Hotspot['key'] | null }) {
                         <stop
                             offset="0"
                             style={{
-                                stopColor: 'var(--color-champagne)',
+                                stopColor: 'var(--color-mint)',
                                 stopOpacity: 0.95,
                             }}
                         />
                         <stop
                             offset="1"
                             style={{
-                                stopColor: 'var(--color-champagne)',
+                                stopColor: 'var(--color-mint)',
                                 stopOpacity: 0,
                             }}
                         />
@@ -553,10 +610,15 @@ function HotspotButton({
     onPointerEnter: (e: PointerEvent) => void;
     onPointerLeave: (e: PointerEvent) => void;
 }) {
+    const { t } = useI18n();
+
     return (
         <button
             type="button"
-            aria-label={`${index + 1}. ${hotspot.title}`}
+            aria-label={t('kiosk.hotspot', {
+                number: index + 1,
+                title: hotspot.title,
+            })}
             aria-describedby={describedBy}
             onClick={onActivate}
             onFocus={onActivate}
@@ -569,7 +631,7 @@ function HotspotButton({
             <span
                 aria-hidden
                 className={cn(
-                    'absolute inset-[9px] animate-pulse-ring rounded-full bg-champagne/60 transition-opacity duration-500',
+                    'absolute inset-[9px] animate-pulse-ring rounded-full bg-mint/60 transition-opacity duration-500',
                     dimmed && 'opacity-0',
                 )}
                 style={{ animationDelay: `${index * 0.45}s` }}
@@ -577,10 +639,10 @@ function HotspotButton({
             <span
                 aria-hidden
                 className={cn(
-                    'relative grid size-[22px] place-items-center rounded-full text-[11px] leading-none font-semibold tabular-nums ring-1 transition-[background-color,color,box-shadow,transform] duration-300 ease-glass group-focus-visible:ring-2 group-focus-visible:ring-champagne group-focus-visible:ring-offset-2 group-focus-visible:ring-offset-ink',
+                    'relative grid size-[22px] place-items-center rounded-full text-[11px] leading-none font-semibold tabular-nums ring-1 transition-[background-color,color,box-shadow,transform] duration-300 ease-glass group-focus-visible:ring-2 group-focus-visible:ring-mint group-focus-visible:ring-offset-2 group-focus-visible:ring-offset-ink',
                     active
-                        ? 'scale-110 bg-champagne text-ink shadow-[0_0_0_6px_oklch(0.86_0.075_82/0.18)] ring-champagne'
-                        : 'bg-ink/80 text-champagne ring-champagne/80',
+                        ? 'scale-110 bg-mint text-ink shadow-[0_0_0_6px_oklch(0.84_0.12_160/0.18)] ring-mint'
+                        : 'bg-ink/80 text-mint ring-mint/80',
                 )}
             >
                 {index + 1}
@@ -618,7 +680,7 @@ function Callout({
                 'relative flex gap-4 border-t py-5 transition-[opacity,border-color,background-color,box-shadow] duration-500 ease-glass',
                 'xl:rounded-[24px] xl:border xl:px-5 xl:py-4 xl:glass',
                 active
-                    ? 'border-champagne/70 xl:border-champagne/45 xl:bg-white/[0.1]'
+                    ? 'border-mint/70 xl:border-mint/45 xl:bg-white/[0.1]'
                     : 'border-white/10 xl:border-white/15',
                 dimmed && 'opacity-70',
             )}
@@ -628,8 +690,8 @@ function Callout({
                 className={cn(
                     'mt-0.5 grid size-[22px] shrink-0 place-items-center rounded-full text-[11px] leading-none font-semibold tabular-nums ring-1 transition-colors duration-300 xl:hidden',
                     active
-                        ? 'bg-champagne text-ink ring-champagne'
-                        : 'text-champagne ring-champagne/70',
+                        ? 'bg-mint text-ink ring-mint'
+                        : 'text-mint ring-mint/70',
                 )}
             >
                 {index + 1}
@@ -638,7 +700,7 @@ function Callout({
                 aria-hidden
                 className={cn(
                     'hidden font-display text-[28px] leading-[0.9] font-normal italic tabular-nums transition-colors duration-300 xl:block',
-                    active ? 'text-champagne' : 'text-champagne/70',
+                    active ? 'text-mint' : 'text-mint/70',
                 )}
             >
                 {String(index + 1).padStart(2, '0')}
@@ -690,7 +752,7 @@ function LeaderLines({ active }: { active: number | null }) {
                         <polyline
                             points={`${startX},${y0} ${kneeX},${y0} ${x1},${y1}`}
                             fill="none"
-                            className="stroke-champagne"
+                            className="stroke-mint"
                             strokeWidth={on ? 1.5 : 1}
                             vectorEffect="non-scaling-stroke"
                         />
@@ -698,7 +760,7 @@ function LeaderLines({ active }: { active: number | null }) {
                             cx={startX}
                             cy={y0}
                             r={3.5}
-                            className="fill-champagne"
+                            className="fill-mint"
                         />
                     </g>
                 );
@@ -708,35 +770,38 @@ function LeaderLines({ active }: { active: number | null }) {
 }
 
 function SpecStrip() {
+    const { t } = useI18n();
+    const specs = useSpecs();
+    const installLine = useContent('sections.kiosk.install_line');
+
     return (
         <Reveal
             delay={120}
             className="mt-14 grid grid-cols-2 border-t border-white/10 md:mt-16 lg:grid-cols-12"
         >
-            <div className="col-span-2 pt-6 pb-8 lg:col-span-3 lg:pr-8">
+            <div className="col-span-2 pt-6 pb-8 lg:col-span-3 lg:pe-8">
                 <p className="text-kicker font-medium text-smoke uppercase">
-                    Kiosk K55
+                    {t('kiosk.model')}
                 </p>
                 <p className="mt-3 max-w-[22rem] text-[15px] leading-relaxed text-mist">
-                    Sold or leased, installed and calibrated by our team from
-                    Riyadh to Muscat.
+                    {installLine}
                 </p>
             </div>
             <dl className="col-span-2 grid grid-cols-2 lg:col-span-9 lg:grid-cols-4">
-                {SPECS.map((spec, i) => (
+                {specs.map((spec, i) => (
                     <div
-                        key={spec.caption}
+                        key={spec.key}
                         className={cn(
-                            'flex flex-col-reverse justify-end gap-2 border-white/10 py-6 lg:border-l lg:px-8',
-                            i % 2 === 1 && 'border-l pl-5',
+                            'flex flex-col-reverse justify-end gap-2 border-white/10 py-6 lg:border-s lg:px-8',
+                            i % 2 === 1 && 'border-s ps-5',
                             i < 2 && 'border-b lg:border-b-0',
-                            i % 2 === 0 && 'pr-5',
+                            i % 2 === 0 && 'pe-5',
                         )}
                     >
                         <dt className="text-[13px] leading-snug text-smoke">
                             {spec.caption}
                         </dt>
-                        <dd className="font-display text-display-md font-medium text-bone tabular-nums">
+                        <dd className="font-display text-display-md font-medium whitespace-nowrap text-bone tabular-nums">
                             {spec.value}
                         </dd>
                     </div>

@@ -1,39 +1,63 @@
-import { Link } from '@inertiajs/react';
-import { ArrowRight, ArrowUpRight, Check } from 'lucide-react';
+import { ArrowRight, ArrowUpRight } from 'lucide-react';
 import { useState } from 'react';
 import type { ChangeEvent, CSSProperties, FormEvent } from 'react';
+import { useI18n } from '@/hooks/use-i18n';
 import { cn } from '@/lib/utils';
-import { BRAND } from '../brand';
+import { Accent } from '../accent';
 import { IMAGES } from '../images';
-import { useLandingLinks } from '../links';
+import { useContent } from '../landing-data';
+import { useOrderDialog } from '../order-dialog';
 import { Photo } from '../photo';
-import { Arabic, Container, Glow, Reveal, cta } from '../primitives';
+import { Container, Glow, Reveal, cta } from '../primitives';
+
+/*
+ * The order section. Its copy comes from the admin (order.* settings); the
+ * email field and button open the order pop-up with the address filled in.
+ */
 
 // Placeholder content: replace before launch. -----------------------------
 
-/** Lookbook captions for the three fanned cards, in IMAGES.finalCta.looks order. */
+/**
+ * Lookbook captions for the three fanned cards, in IMAGES.finalCta.looks
+ * order. Their words (city, piece, alt text) and the backdrop's caption are
+ * in i18n/sections/final-cta.ts, in both languages.
+ */
 const LOOK_CAPTIONS = [
-    { number: '14', piece: 'Ivory hijab, pearl drops', city: 'Doha' },
-    { number: '22', piece: 'Silk carré, navy', city: 'Kuwait City' },
-    { number: '31', piece: 'Round gold frames, 46 mm', city: 'Manama' },
+    {
+        number: '14',
+        city: 'final-cta.look14City',
+        piece: 'final-cta.look14Piece',
+        alt: 'final-cta.look14Alt',
+    },
+    {
+        number: '22',
+        city: 'final-cta.look22City',
+        piece: 'final-cta.look22Piece',
+        alt: 'final-cta.look22Alt',
+    },
+    {
+        number: '31',
+        city: 'final-cta.look31City',
+        piece: 'final-cta.look31Piece',
+        alt: 'final-cta.look31Alt',
+    },
 ] as const;
-
-/** The stage background is a fabric swatch; the caption says which. */
-const BACKDROP_CAPTION = 'Backdrop: silk charmeuse, dusk rose';
 
 // -------------------------------------------------------------------------
 
 /*
- * Fan geometry. Each card rests at (--r) and, when the stage is hovered or
- * the demo is booked, opens to (--fr, --fx, --fy). Positions are classes so
- * the phone and desktop fans can differ.
+ * Fan geometry. Each card rests at (--r) and, when the stage is hovered,
+ * opens to (--fr, --fx, --fy). Positions are classes so the phone and
+ * desktop fans can differ. They are logical (start = left in English), and
+ * the Arabic page mirrors the angles and the sideways drift (--flip), so the
+ * first card still slides under the glass panel, which is then on its right.
  */
 const FAN = [
     {
-        place: 'left-[3%] top-[16%] w-[35%] lg:top-[20%] lg:left-[-13%] lg:w-[47%] z-[1]',
-        // This card's left edge slides under the glass panel, so its caption
-        // starts past the tucked strip.
-        caption: 'lg:left-[22%]',
+        place: 'start-[3%] top-[16%] w-[35%] lg:top-[20%] lg:start-[-13%] lg:w-[47%] z-[1]',
+        // This card's inner edge slides under the glass panel, so its
+        // caption starts past the tucked strip.
+        caption: 'lg:start-[22%]',
         style: {
             '--r': '-8deg',
             '--fr': '-12deg',
@@ -42,98 +66,64 @@ const FAN = [
         },
     },
     {
-        place: 'left-[33%] top-0 w-[35%] lg:top-[-7%] lg:left-[24%] lg:w-[47%] z-[3]',
+        place: 'start-[33%] top-0 w-[35%] lg:top-[-7%] lg:start-[24%] lg:w-[47%] z-[3]',
         caption: '',
         style: { '--r': '-1deg', '--fr': '-2deg', '--fx': '0%', '--fy': '-5%' },
     },
     {
-        place: 'left-[62%] top-[14%] w-[35%] lg:top-[28%] lg:left-[52%] lg:w-[47%] z-[2]',
+        place: 'start-[62%] top-[14%] w-[35%] lg:top-[28%] lg:start-[52%] lg:w-[47%] z-[2]',
         caption: '',
         style: { '--r': '6deg', '--fr': '10deg', '--fx': '9%', '--fy': '2%' },
     },
 ] as const;
 
+/** Stands in for a number while a message is split around it. */
+const SLOT = '\u2063';
+
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@.]+(\.[^\s@.]+)*\.[^\s@.]{2,}$/;
 
-function validate(value: string): string | null {
+/** An empty field is fine: the pop-up asks for the address itself. */
+function isIncomplete(value: string): boolean {
     const email = value.trim();
 
-    if (!email) {
-        return 'Enter your work email and we’ll send you a time.';
-    }
-
-    if (!EMAIL_PATTERN.test(email)) {
-        return 'That address looks incomplete. Try name@yourstore.com.';
-    }
-
-    return null;
+    return email !== '' && !EMAIL_PATTERN.test(email);
 }
 
 export default function FinalCta() {
-    const [booked, setBooked] = useState<string | null>(null);
-    const [refocus, setRefocus] = useState(false);
+    const kicker = useContent('order.kicker');
+    const title = useContent('order.title');
+    const lede = useContent('order.lede');
 
     return (
-        <section id="demo" className="relative isolate py-24 md:py-36">
+        <section id="order" className="relative isolate py-24 md:py-36">
             <Container>
                 <Reveal>
-                    <div
-                        data-open={booked !== null}
-                        className="group/fan relative mt-12 lg:mt-0"
-                    >
+                    <div className="group/fan relative mt-12 lg:mt-0">
                         <Backdrop />
 
                         <div className="relative grid p-3 sm:p-4 lg:grid-cols-12 lg:gap-x-8 lg:p-5">
-                            <div className="glass-rim relative z-20 rounded-[24px] p-6 glass-strong max-lg:-mt-16 sm:p-10 md:rounded-[28px] lg:col-span-7 lg:p-12 lg:pr-16 xl:p-14 xl:pr-20">
+                            <div className="glass-rim relative z-20 rounded-[24px] p-6 glass-strong max-lg:-mt-16 sm:p-10 md:rounded-[28px] lg:col-span-7 lg:p-12 lg:pe-16 xl:p-14 xl:pe-20">
                                 <div className="flex items-center gap-4">
                                     <p className="text-kicker font-medium text-bone uppercase">
-                                        Book a demo
+                                        {kicker}
                                     </p>
                                     <span
                                         aria-hidden
                                         className="h-px flex-1 bg-white/15"
                                     />
-                                    <Arabic className="text-lg leading-none text-champagne">
-                                        ابدأ الآن
-                                    </Arabic>
                                 </div>
 
-                                <h2 className="mt-8 font-display text-display-lg font-medium text-balance text-bone md:mt-10 [&_em]:font-normal [&_em]:text-champagne">
-                                    Your next customer is already{' '}
-                                    <em className="sm:whitespace-nowrap">
-                                        in front of a screen.
-                                    </em>
+                                <h2 className="mt-8 font-display text-display-lg font-medium text-balance text-bone md:mt-10 [&_em]:font-normal [&_em]:text-mint">
+                                    <Accent
+                                        text={title}
+                                        className="sm:whitespace-nowrap"
+                                    />
                                 </h2>
                                 <p className="mt-6 max-w-[44ch] text-[17px] leading-relaxed text-pretty text-mist">
-                                    See {BRAND.name} on your own catalogue in a
-                                    20-minute call. We’ll bring a kiosk to your
-                                    store if you’re in the Gulf.
+                                    {lede}
                                 </p>
 
-                                <div
-                                    role="status"
-                                    aria-live="polite"
-                                    className="empty:hidden"
-                                >
-                                    {booked !== null ? (
-                                        <Confirmation
-                                            email={booked}
-                                            onReset={() => {
-                                                setBooked(null);
-                                                setRefocus(true);
-                                            }}
-                                        />
-                                    ) : null}
-                                </div>
-                                {booked === null ? (
-                                    <DemoForm
-                                        focusOnMount={refocus}
-                                        onBooked={(email) => {
-                                            setBooked(email);
-                                            setRefocus(false);
-                                        }}
-                                    />
-                                ) : null}
+                                <OrderForm />
 
                                 <PanelFooter />
                             </div>
@@ -147,7 +137,7 @@ export default function FinalCta() {
     );
 }
 
-/** Rose satin, softened as if seen through frosted glass, with two lights. */
+/** Teal satin, softened as if seen through frosted glass, with two lights. */
 function Backdrop() {
     const backdrop = IMAGES.finalCta.backdrop;
 
@@ -166,13 +156,13 @@ function Backdrop() {
                     objectPosition: `${backdrop.focus[0] * 100}% ${backdrop.focus[1] * 100}%`,
                 }}
             />
-            <div className="absolute inset-0 bg-[linear-gradient(105deg,oklch(0.145_0.018_285/0.55),oklch(0.145_0.018_285/0.2)_55%,oklch(0.145_0.018_285/0.45))]" />
+            <div className="absolute inset-0 bg-[linear-gradient(105deg,oklch(0.145_0.018_200/0.55),oklch(0.145_0.018_200/0.2)_55%,oklch(0.145_0.018_200/0.45))]" />
             <Glow
-                color="amethyst"
+                color="jade"
                 className="-top-48 -left-32 z-0 size-[36rem] opacity-55"
             />
             <Glow
-                color="coral"
+                color="lagoon"
                 className="-right-24 -bottom-56 z-0 size-[34rem] opacity-50"
             />
             <div className="absolute inset-0 grain opacity-[0.07] mix-blend-overlay" />
@@ -180,15 +170,15 @@ function Backdrop() {
     );
 }
 
-function DemoForm({
-    focusOnMount,
-    onBooked,
-}: {
-    focusOnMount: boolean;
-    onBooked: (email: string) => void;
-}) {
+/** The email field and button: they open the order pop-up, email filled in. */
+function OrderForm() {
+    const { t } = useI18n();
+    const order = useOrderDialog();
+    const label = useContent('order.cta');
     const [email, setEmail] = useState('');
     const [error, setError] = useState<string | null>(null);
+    const validate = (value: string) =>
+        isIncomplete(value) ? t('final-cta.emailInvalid') : null;
     const [attempted, setAttempted] = useState(false);
     const [input, setInput] = useState<HTMLInputElement | null>(null);
 
@@ -213,70 +203,57 @@ function DemoForm({
             return;
         }
 
-        // TODO: connect to backend (POST the address to the demo-request endpoint).
-        onBooked(email.trim());
+        order.open({ source: 'order-section', email: email.trim() });
     };
 
     return (
         <form noValidate onSubmit={onSubmit} className="mt-9">
-            <label htmlFor="demo-email" className="sr-only">
-                Work email
+            <label htmlFor="order-email" className="sr-only">
+                {t('final-cta.emailLabel')}
             </label>
             <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
                 <input
-                    ref={(node) => {
-                        setInput(node);
-
-                        if (node && focusOnMount) {
-                            node.focus();
-                        }
-                    }}
-                    id="demo-email"
+                    ref={setInput}
+                    id="order-email"
                     name="email"
                     type="email"
                     inputMode="email"
                     autoComplete="email"
-                    required
-                    placeholder="you@yourstore.com"
+                    // Addresses read left to right; on the Arabic page the
+                    // field still lines up on the right.
+                    dir="ltr"
+                    placeholder={t('final-cta.emailPlaceholder')}
                     value={email}
                     onChange={onChange}
                     aria-invalid={error ? true : undefined}
-                    aria-describedby={error ? 'demo-email-error' : undefined}
+                    aria-describedby={error ? 'order-email-error' : undefined}
                     className={cn(
-                        'h-14 w-full min-w-0 rounded-[20px] px-5 text-base text-bone glass-thin transition-shadow duration-300 ease-glass placeholder:text-smoke focus-visible:ring-2 focus-visible:outline-none sm:col-start-1 sm:row-start-1',
+                        'h-14 w-full min-w-0 rounded-[20px] px-5 text-base text-bone glass-thin transition-shadow duration-300 ease-glass placeholder:text-smoke focus-visible:ring-2 focus-visible:outline-none sm:col-start-1 sm:row-start-1 rtl:text-right',
                         error
                             ? 'ring-1 ring-coral/80 focus-visible:ring-coral/80'
-                            : 'focus-visible:ring-champagne/70',
+                            : 'focus-visible:ring-mint/70',
                     )}
                 />
                 <p
-                    id="demo-email-error"
+                    id="order-email-error"
                     className={cn(
                         'flex items-start gap-2 text-[14px] leading-snug text-bone sm:col-span-2 sm:row-start-2',
                         error ? 'max-sm:-mt-0.5 max-sm:mb-1' : 'sr-only',
                     )}
                 >
-                    {error ? (
-                        <>
-                            <span
-                                aria-hidden
-                                className="mt-[0.45em] size-1.5 shrink-0 rounded-full bg-coral"
-                            />
-                            {error}
-                        </>
-                    ) : null}
+                    {error}
                 </p>
                 <button
                     type="submit"
                     className={cn(
-                        cta({ variant: 'gold', size: 'lg' }),
+                        cta({ variant: 'primary', size: 'lg' }),
                         'group/submit sm:col-start-2 sm:row-start-1',
                     )}
                 >
-                    Book a demo
+                    {label}
                     <ArrowRight
                         aria-hidden
-                        className="size-4 transition-transform duration-[380ms] ease-glass group-hover/submit:translate-x-0.5"
+                        className="size-4 transition-transform duration-[380ms] ease-glass group-hover/submit:translate-x-0.5 rtl:-scale-x-100 rtl:group-hover/submit:-translate-x-0.5"
                     />
                 </button>
             </div>
@@ -284,93 +261,60 @@ function DemoForm({
     );
 }
 
-function Confirmation({
-    email,
-    onReset,
-}: {
-    email: string;
-    onReset: () => void;
-}) {
-    return (
-        <div
-            ref={(node) => node?.focus()}
-            tabIndex={-1}
-            className="mt-9 flex items-start gap-4 rounded-[20px] bg-white/[0.05] p-5 ring-1 ring-champagne/30 focus:outline-none sm:p-6"
-        >
-            <span
-                aria-hidden
-                className="grid size-9 shrink-0 place-items-center rounded-full bg-champagne text-ink"
-            >
-                <Check className="size-4" strokeWidth={2.5} />
-            </span>
-            <div className="min-w-0">
-                <p className="font-display text-[1.5rem] leading-tight font-medium text-bone">
-                    Thank you.
-                </p>
-                <p className="mt-1.5 text-[15px] leading-relaxed text-pretty text-mist">
-                    We’ll reply within one business day, in Arabic or English.
-                </p>
-                <p className="mt-3 text-[13px] text-smoke">
-                    Sent from{' '}
-                    <span className="[overflow-wrap:anywhere] text-mist">
-                        {email}
-                    </span>
-                    <span
-                        aria-hidden
-                        className="mx-2 text-white/20 max-sm:hidden"
-                    >
-                        ·
-                    </span>
-                    <br className="sm:hidden" />
-                    <button
-                        type="button"
-                        onClick={onReset}
-                        className="cursor-pointer text-mist underline decoration-white/25 underline-offset-4 transition-colors hover:text-bone hover:decoration-champagne focus-visible:rounded-[4px] focus-visible:ring-2 focus-visible:ring-champagne/70 focus-visible:outline-none"
-                    >
-                        Use a different address
-                    </button>
-                </p>
-            </div>
-        </div>
-    );
-}
-
+/** Email and demo links; hidden while no contact email is set. */
 function PanelFooter() {
-    const { start } = useLandingLinks();
+    const email = useContent('contact.email');
+    const emailPrompt = useContent('order.email_prompt');
+    const demoPrompt = useContent('order.demo_prompt');
+    const demoLink = useContent('order.demo_link');
+    const demoSubject = useContent('order.demo_subject');
+
+    if (!email) {
+        return null;
+    }
 
     return (
         <div className="mt-10 flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-t border-white/10 pt-5 text-[14px]">
             <p className="text-smoke">
-                Prefer email?{' '}
+                {emailPrompt}{' '}
                 <a
-                    href={`mailto:${BRAND.email}`}
-                    className="text-bone underline decoration-white/25 underline-offset-4 transition-colors hover:decoration-champagne focus-visible:rounded-[4px] focus-visible:ring-2 focus-visible:ring-champagne/70 focus-visible:outline-none"
+                    href={`mailto:${email}`}
+                    className="text-bone underline decoration-white/25 underline-offset-4 transition-colors bidi-ltr hover:decoration-mint focus-visible:rounded-[4px] focus-visible:ring-2 focus-visible:ring-mint/70 focus-visible:outline-none"
                 >
-                    {BRAND.email}
+                    {email}
                 </a>
             </p>
-            <Link
-                href={start}
-                className="group inline-flex items-center gap-1.5 text-mist transition-colors hover:text-bone focus-visible:rounded-[4px] focus-visible:ring-2 focus-visible:ring-champagne/70 focus-visible:outline-none"
+            <a
+                href={`mailto:${email}?subject=${encodeURIComponent(demoSubject)}`}
+                className="group text-mist transition-colors hover:text-bone focus-visible:rounded-[4px] focus-visible:ring-2 focus-visible:ring-mint/70 focus-visible:outline-none"
             >
-                Or start the 14-day trial
-                <ArrowUpRight
-                    aria-hidden
-                    className="size-4 transition-transform duration-[380ms] ease-glass group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
-                />
-            </Link>
+                {demoPrompt}{' '}
+                {/* Breaks between the two sentences, arrow kept on the last word. */}
+                <span className="whitespace-nowrap">
+                    {demoLink}
+                    <ArrowUpRight
+                        aria-hidden
+                        className="ms-1.5 inline size-4 align-[-3px] transition-transform duration-[380ms] ease-glass group-hover:translate-x-0.5 group-hover:-translate-y-0.5 rtl:-scale-x-100 rtl:group-hover:-translate-x-0.5"
+                    />
+                </span>
+            </a>
         </div>
     );
 }
 
 /** Three looks, dealt like cards; the first slides under the glass panel. */
 function LooksFan({ className }: { className?: string }) {
+    const { t } = useI18n();
     const looks = IMAGES.finalCta.looks;
+    // "Look 14": the number is its own text run, as the caption was typeset.
+    const [lookBefore, lookAfter] = t('final-cta.lookCaption', {
+        number: SLOT,
+    }).split(SLOT);
 
     return (
         <div
             className={cn(
-                'relative z-10 h-[200px] max-lg:-mt-12 sm:h-[280px] lg:h-auto',
+                'relative z-10 h-[200px] max-lg:-mt-12 sm:h-[280px] lg:h-auto rtl:[--flip:-1]',
                 className,
             )}
         >
@@ -383,15 +327,15 @@ function LooksFan({ className }: { className?: string }) {
                         key={image.id}
                         style={fan.style as CSSProperties}
                         className={cn(
-                            'absolute [rotate:var(--r)] transition-[rotate,translate] duration-700 ease-glass',
-                            'group-hover/fan:[translate:var(--fx)_var(--fy)] group-hover/fan:[rotate:var(--fr)] group-data-[open=true]/fan:[translate:var(--fx)_var(--fy)] group-data-[open=true]/fan:[rotate:var(--fr)]',
+                            'absolute [rotate:calc(var(--r)*var(--flip,1))] transition-[rotate,translate] duration-700 ease-glass',
+                            'group-hover/fan:[translate:calc(var(--fx)*var(--flip,1))_var(--fy)] group-hover/fan:[rotate:calc(var(--fr)*var(--flip,1))]',
                             fan.place,
                         )}
                     >
                         <div className="relative overflow-hidden rounded-[14px] shadow-[0_40px_60px_-30px_oklch(0_0_0/0.9),0_0_0_1px_oklch(1_0_0/0.14)] sm:rounded-[20px]">
                             <Photo
                                 id={image.id}
-                                alt={image.alt}
+                                alt={t(caption.alt)}
                                 ratio={1.25}
                                 focus={image.focus}
                                 widths={[240, 360, 480]}
@@ -408,15 +352,17 @@ function LooksFan({ className }: { className?: string }) {
                                     fan.caption,
                                 )}
                             >
-                                <span className="block truncate text-[9px] font-medium tracking-[0.2em] text-mist uppercase sm:text-[10px]">
-                                    Look {caption.number}
+                                <span className="block truncate text-[9px] font-medium tracking-[0.2em] text-mist uppercase sm:text-[10px] rtl:text-[11px] sm:rtl:text-[11px]">
+                                    {lookBefore}
+                                    {caption.number}
+                                    {lookAfter}
                                     <span className="max-sm:hidden lg:max-xl:hidden">
                                         {' '}
-                                        · {caption.city}
+                                        · {t(caption.city)}
                                     </span>
                                 </span>
                                 <span className="mt-0.5 block truncate text-[12px] text-bone max-sm:hidden lg:max-xl:hidden">
-                                    {caption.piece}
+                                    {t(caption.piece)}
                                 </span>
                             </figcaption>
                         </div>
@@ -424,8 +370,8 @@ function LooksFan({ className }: { className?: string }) {
                 );
             })}
 
-            <p className="absolute right-2 bottom-1 hidden text-[11px] tracking-[0.02em] text-bone/75 italic lg:block">
-                {BACKDROP_CAPTION}
+            <p className="absolute end-2 bottom-1 hidden text-[11px] tracking-[0.02em] text-bone/75 italic lg:block">
+                {t('final-cta.backdropCaption')}
             </p>
         </div>
     );

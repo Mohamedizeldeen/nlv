@@ -1,23 +1,30 @@
-import { Check, ChevronLeft, ShoppingBag } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { useState } from 'react';
 import type { ReactNode } from 'react';
+import { useI18n } from '@/hooks/use-i18n';
+import type { Translate } from '@/i18n';
 import { cn } from '@/lib/utils';
-import { PhoneFrame, TabletFrame } from '../devices';
+import { Accent } from '../accent';
+import { BRAND } from '../brand';
+import { BrowserFrame } from '../devices';
 import { IMAGES } from '../images';
+import { useContent } from '../landing-data';
+import { messageParts } from '../message-parts';
 import { Photo } from '../photo';
 import {
-    Arabic,
     Container,
     Glow,
     Reveal,
     SectionHeader,
     useInView,
 } from '../primitives';
-import { FitChip, LiveDot, ScanOverlay } from '../tryon-ui';
+import { FitChip, ScanOverlay } from '../tryon-ui';
 
 // Placeholder content: replace before launch.
-// Metrics, the store ("Maison Rimal", Tahlia Street), the shopper
-// ("Noura A."), prices and measurements are illustrative only.
+// Metrics, the store ("Maison Rimal" and its branches), stock levels,
+// try-on counts, prices and measurements are illustrative only. Their words
+// are in the section's dictionary, i18n/sections/features.ts, in both
+// languages.
 type Capability = { label: string; detail: ReactNode };
 type Metric = {
     value: string;
@@ -25,131 +32,216 @@ type Metric = {
     caption: string;
     /** Per-unit optical sizing: "%" and "mm" sit italic, "×" upright. */
     unitClassName: string;
+    /**
+     * A figure whose sign must stay put ("+24%", "3.2×"): kept left to right
+     * inside Arabic text. A figure with a word unit ("62 mm") reads in the
+     * page's direction instead.
+     */
+    ltr?: boolean;
 };
 
-const ONLINE = {
-    index: '01',
-    label: 'Online store',
-    body: 'A Try it on button on every product page. Shoppers see the piece on their own photo in under two seconds, with the size to order, so they stop buying three sizes to keep one.',
-    items: [
-        {
-            label: 'Works from your existing product photos',
-            detail: 'Packshots and model shots are enough. No 3D scans, no reshoots.',
-        },
-        {
-            label: 'Size advice from a single photo',
-            detail: '54 or 56? Answered from one photo and her height.',
-        },
-        {
-            label: 'Arabic and English, right-to-left done properly',
-            detail: (
-                <>
-                    Mirrored layouts, native Arabic type, and a button that
-                    reads <Arabic className="text-[1.08em]">جرّبها</Arabic>.
-                </>
-            ),
-        },
-    ] satisfies Capability[],
-    metric: {
-        value: '−31',
-        unit: '%',
-        caption: 'size-related returns in the first 90 days',
-        unitClassName: 'text-[0.42em] italic',
-    } satisfies Metric,
+type Row = {
+    index: string;
+    label: string;
+    /** Title copy, its accent marked with *asterisks*. */
+    title: string;
+    body: string;
+    items: Capability[];
 };
+
+function railRow(t: Translate): Row & { metric: Metric } {
+    return {
+        index: '01',
+        label: t('features.railLabel'),
+        title: t('features.railTitle'),
+        body: t('features.railBody'),
+        items: [
+            {
+                label: t('features.railItem1Label'),
+                detail: t('features.railItem1Detail'),
+            },
+            {
+                label: t('features.railItem2Label'),
+                detail: t('features.railItem2Detail'),
+            },
+            {
+                label: t('features.railItem3Label'),
+                detail: t('features.railItem3Detail'),
+            },
+        ],
+        metric: {
+            value: '3.2',
+            unit: '×',
+            caption: t('features.railMetricCaption'),
+            unitClassName: 'relative bottom-[0.06em] ms-1 text-[0.72em]',
+            ltr: true,
+        },
+    };
+}
+
+function cloudRow(t: Translate): Row & { metric: Metric } {
+    return {
+        index: '02',
+        label: t('features.cloudLabel'),
+        title: t('features.cloudTitle'),
+        body: t('features.cloudBody'),
+        items: [
+            {
+                label: t('features.cloudItem1Label'),
+                detail: t('features.cloudItem1Detail'),
+            },
+            {
+                label: t('features.cloudItem2Label'),
+                detail: t('features.cloudItem2Detail'),
+            },
+            {
+                label: t('features.cloudItem3Label'),
+                detail: t('features.cloudItem3Detail'),
+            },
+        ],
+        metric: {
+            value: '+24',
+            unit: '%',
+            caption: t('features.cloudMetricCaption'),
+            unitClassName: 'text-[0.42em] italic',
+            ltr: true,
+        },
+    };
+}
+
+function eyewearRow(t: Translate): Row & { metric: Metric } {
+    return {
+        index: '03',
+        label: t('features.eyewearLabel'),
+        title: t('features.eyewearTitle'),
+        body: t('features.eyewearBody'),
+        items: [
+            {
+                label: t('features.eyewearItem1Label'),
+                detail: t('features.eyewearItem1Detail'),
+            },
+            {
+                label: t('features.eyewearItem2Label'),
+                detail: t('features.eyewearItem2Detail'),
+            },
+            {
+                label: t('features.eyewearItem3Label'),
+                detail: t('features.eyewearItem3Detail'),
+            },
+        ],
+        metric: {
+            value: '62',
+            unit: t('features.millimetres'),
+            caption: t('features.pdCaption'),
+            unitClassName: 'ms-0.5 text-[0.36em] italic',
+        },
+    };
+}
 
 const STORE = {
-    index: '02',
-    label: 'In store · Clienteling',
-    body: 'When she walks in, her saved looks are already on the stylist’s tablet: the pieces, the sizes the engine recommended, and what is on the rail right now. The conversation starts where the website left off.',
-    items: [
-        {
-            label: 'Looks saved from web to store',
-            detail: 'Her shortlist travels with her account, or a QR code at the door.',
-        },
-        {
-            label: 'Stylist tablet view',
-            detail: 'Saved looks, sizes and notes on one screen, in Arabic or English.',
-        },
-        {
-            label: 'Stock-aware: suggests what’s on the rail',
-            detail: 'If the 54 is in the stockroom, the tablet says so before anyone goes looking.',
-        },
-    ] satisfies Capability[],
-    metric: {
-        value: '3.2',
-        unit: '×',
-        caption: 'more pieces tried per store visit',
-        unitClassName: 'relative bottom-[0.06em] ml-1 text-[0.72em]',
-    } satisfies Metric,
+    /** The store's wordmark in the mockups: Latin artwork on both pages. */
+    wordmark: 'Maison Rimal',
+    /** Path of the store's page in the cloud app (a URL: stays Latin). */
+    slug: 'maison-rimal',
+    catalogue: 1240,
+    /** The morning's catalogue push, shown on the salon photo. */
+    edit: { pieces: 86, live: '09:00' },
 };
 
-const EYEWEAR = {
-    index: '03',
-    label: 'Eyewear · Online and in store',
-    body: 'From one selfie, TryOn finds the pupils, the bridge and the width of the face, then shows only the frames that will sit right. Your optician gets numbers they can work with.',
-    items: [
-        {
-            label: 'Face-width matching',
-            detail: 'Frames too wide or too narrow for her face drop out of the results.',
-        },
-        {
-            label: 'Virtual lenses and tints',
-            detail: 'Clear, gradient, polarised or photochromic, previewed on the chosen frame.',
-        },
-        {
-            label: 'Prescription-ready handoff',
-            detail: 'PD and fit notes travel with the order, not on a sticky note.',
-        },
-    ] satisfies Capability[],
-    metric: {
-        value: '62',
-        unit: 'mm',
-        caption: 'pupillary distance, measured from a selfie',
-        unitClassName: 'ml-0.5 text-[0.36em] italic',
-    } satisfies Metric,
+type Where = 'rail' | 'stockroom' | 'branch';
+
+/** The piece on the mirror in row 1. It tops the cloud app's list in row 2. */
+const LOOK = {
+    size: '40',
+    left: 2,
+    sizes: [
+        { size: '36', where: 'rail' },
+        { size: '38', where: 'rail' },
+        { size: '40', where: 'stockroom' },
+        { size: '42', where: 'branch' },
+        { size: '44', where: 'rail' },
+    ] satisfies { size: string; where: Where }[],
+    /** Colourways, as swatches on the result. The first is on screen. */
+    colours: [
+        { name: 'Blush', swatch: 'bg-rose' },
+        { name: 'Ivory', swatch: 'bg-bone' },
+        { name: 'Emerald', swatch: 'bg-jade' },
+        { name: 'Black', swatch: 'bg-ink' },
+    ],
 };
 
-type SavedLook = {
+/** Stock marker under each size: filled bone, filled accent, hollow. */
+const WHERE_MARK: Record<Where, string> = {
+    rail: 'bg-bone/85',
+    stockroom: 'bg-mint',
+    branch: 'ring-1 ring-inset ring-mist/70',
+};
+
+type Tried = {
     id: string;
     focus: [number, number];
     zoom?: number;
     name: string;
-    size: string;
-    stock: string;
-    /** Stock status dot: lagoon = on the rail, champagne = stockroom. */
-    tone: string;
+    tried: number;
+    sold: number;
 };
 
-/** The pieces on Noura's stylist tablet. The first is the blazer from row 1. */
-const SAVED_LOOKS: SavedLook[] = [
-    {
-        id: IMAGES.features.onlineResult.id,
-        focus: [0.42, 0.52],
-        zoom: 2.1,
-        name: 'Linen blazer, blush',
-        size: 'M',
-        stock: 'On the rail · B2',
-        tone: 'bg-lagoon',
-    },
-    {
-        id: IMAGES.garments[0].id,
-        focus: IMAGES.garments[0].focus,
-        zoom: IMAGES.garments[0].zoom,
-        name: 'Abaya, lilac',
-        size: '54',
-        stock: 'Stockroom · 2 left',
-        tone: 'bg-champagne',
-    },
-    {
-        id: IMAGES.garments[6].id,
-        focus: IMAGES.garments[6].focus,
-        name: 'Mini bag, burgundy',
-        size: 'One size',
-        stock: 'On the rail · A4',
-        tone: 'bg-lagoon',
-    },
-];
+/** "Most tried this week" in the cloud app. The first is row 1's blazer. */
+function mostTried(t: Translate): Tried[] {
+    return [
+        {
+            id: IMAGES.features.tryOnResult.id,
+            focus: [0.42, 0.52],
+            zoom: 2.1,
+            name: t('features.pieceBlazer'),
+            tried: 214,
+            sold: 66,
+        },
+        {
+            id: IMAGES.garments[6].id,
+            focus: IMAGES.garments[6].focus,
+            name: t('features.pieceBag'),
+            tried: 171,
+            sold: 49,
+        },
+        {
+            id: IMAGES.garments[4].id,
+            focus: IMAGES.garments[4].focus,
+            name: t('features.pieceShirt'),
+            tried: 126,
+            sold: 27,
+        },
+        {
+            id: IMAGES.garments[3].id,
+            focus: IMAGES.garments[3].focus,
+            name: t('features.pieceTrucker'),
+            tried: 98,
+            sold: 30,
+        },
+    ];
+}
+
+type Device = { name: string; place: string; online: boolean };
+
+function devices(t: Translate): Device[] {
+    return [
+        {
+            name: t('features.mirror', { number: 1 }),
+            place: t('features.tahliaStreet'),
+            online: true,
+        },
+        {
+            name: t('features.mirror', { number: 2 }),
+            place: t('features.redSeaMall'),
+            online: true,
+        },
+        {
+            name: t('features.mirror', { number: 3 }),
+            place: t('features.olayaRiyadh'),
+            online: false,
+        },
+    ];
+}
 
 /*
  * Eyewear plate geometry, in percent of the 4:5 portrait (measured on the
@@ -163,24 +255,23 @@ const FRAME_MM = 138;
 type MeasureKey = 'width' | 'bridge' | 'pd';
 
 export default function Features() {
+    const label = useContent('sections.features.label');
+    const title = useContent('sections.features.title');
+    const lede = useContent('sections.features.lede');
+
     return (
         <section id="features" className="relative isolate py-24 md:py-36">
             <Container>
                 <SectionHeader
                     index="02"
-                    label="Online & in store"
-                    labelAr="عبر الإنترنت وفي المتجر"
-                    title={
-                        <>
-                            One fitting room. <em>Two doors.</em>
-                        </>
-                    }
-                    lede="The same try-on engine runs in your online store and on your shop floor, so the customer who tried it on last night can find it in store today."
+                    label={label}
+                    title={<Accent text={title} />}
+                    lede={lede}
                 />
 
                 <div className="mt-20 space-y-28 md:mt-28 lg:space-y-40">
-                    <OnlineRow />
-                    <StoreRow />
+                    <RailRow />
+                    <CloudRow />
                     <EyewearRow />
                 </div>
             </Container>
@@ -189,52 +280,54 @@ export default function Features() {
 }
 
 /* ------------------------------------------------------------------ */
-/* Row 1: online store                                                 */
+/* Row 1: the endless rail                                             */
 /* ------------------------------------------------------------------ */
 
-function OnlineRow() {
-    const photo = IMAGES.features.online;
+function RailRow() {
+    const { t } = useI18n();
+    const photo = IMAGES.store.rail;
+    const row = railRow(t);
 
     return (
         <article className="relative isolate grid gap-y-14 lg:grid-cols-12 lg:gap-x-8">
             <Glow
-                color="coral"
-                className="top-[18%] left-[38%] size-[26rem] opacity-30"
+                color="mint"
+                className="start-[36%] top-[22%] size-[26rem] opacity-[0.16]"
             />
             <Reveal
                 as="figure"
-                className="relative pb-[26%] sm:pb-[18%] lg:col-span-7 lg:pb-[84px]"
+                className="relative pb-[30%] sm:pb-[14%] lg:col-span-7 lg:pb-[84px]"
             >
-                {/* Bleeds off the left edge of the viewport on desktop. */}
-                <div className="relative mr-[22%] aspect-[4/5] overflow-hidden rounded-[28px] sm:aspect-[5/4] lg:mr-[118px] lg:ml-[calc((min(100vw,1320px)-100vw)/2-3rem)] lg:aspect-auto lg:h-[560px] lg:rounded-l-none lg:rounded-r-[32px]">
+                {/* Bleeds off the viewport's start edge on desktop (the right in Arabic). */}
+                <div className="relative me-[24%] aspect-[4/5] overflow-hidden rounded-[28px] sm:aspect-[5/4] lg:ms-[calc((min(100vw,1320px)-100vw)/2-3rem)] lg:me-[118px] lg:aspect-auto lg:h-[560px] lg:rounded-s-none lg:rounded-e-[32px]">
                     <Photo
                         id={photo.id}
-                        alt={photo.alt}
+                        alt={t('features.railPhotoAlt')}
                         sizes="(min-width: 1024px) 720px, 80vw"
                         widths={[480, 800, 1200]}
                         className="absolute inset-0 size-full"
-                        style={{ objectPosition: '40% 40%' }}
+                        style={{ objectPosition: '34% 62%' }}
                     />
                 </div>
 
-                <figcaption className="absolute bottom-0 left-0 w-[46%] text-[13px] leading-snug text-smoke sm:w-[52%] lg:top-[584px] lg:bottom-auto lg:w-[44%]">
-                    <span className="mr-2 text-kicker font-medium whitespace-nowrap text-bone uppercase">
-                        Fig. 1
+                <figcaption className="absolute start-0 bottom-0 w-[44%] text-[13px] leading-snug text-smoke sm:w-[52%] lg:top-[584px] lg:bottom-auto lg:w-[46%]">
+                    <span className="me-2 text-kicker font-medium whitespace-nowrap text-bone uppercase">
+                        {t('features.fig', { number: 1 })}
                     </span>
-                    One phone photo. Her camera, her light, no studio.
+                    {t('features.fig1')}
                 </figcaption>
 
-                <div className="absolute right-0 bottom-0 w-[50%] max-w-[250px] rotate-[-3deg] sm:w-[36%] lg:top-[88px] lg:right-[-8px] lg:bottom-auto lg:w-[250px]">
-                    <PhoneFrame
-                        className="w-full"
-                        screenClassName="@container bg-[oklch(0.16_0.015_285)]"
-                    >
-                        <ProductScreen />
-                    </PhoneFrame>
+                <div className="absolute end-0 bottom-0 w-[54%] max-w-[250px] sm:w-[34%] lg:end-[-8px] lg:top-[56px] lg:bottom-auto lg:w-[256px]">
+                    <MirrorPanel>
+                        <RailScreen />
+                    </MirrorPanel>
                     <FitChip
-                        label="Size"
-                        value="M · 94% fit"
-                        className="absolute top-[22%] right-[82%] rotate-[3deg] whitespace-nowrap lg:top-[30%] lg:right-[90%]"
+                        tone="dark"
+                        label={t('features.onTheMirror')}
+                        value={t('features.pieces', {
+                            count: STORE.catalogue,
+                        })}
+                        className="absolute end-[86%] top-[10%] whitespace-nowrap lg:end-[92%] lg:top-[14%]"
                     />
                 </div>
             </Reveal>
@@ -244,16 +337,12 @@ function OnlineRow() {
                 className="lg:col-span-4 lg:col-start-9 lg:self-end"
             >
                 <RowText
-                    index={ONLINE.index}
-                    label={ONLINE.label}
-                    title={
-                        <>
-                            Fewer returns. More <em>“add to bag”.</em>
-                        </>
-                    }
-                    body={ONLINE.body}
-                    items={ONLINE.items}
-                    metric={ONLINE.metric}
+                    index={row.index}
+                    label={row.label}
+                    title={<Accent text={row.title} />}
+                    body={row.body}
+                    items={row.items}
+                    metric={row.metric}
                 />
             </Reveal>
         </article>
@@ -261,165 +350,231 @@ function OnlineRow() {
 }
 
 /**
- * The retailer's product page inside the phone, mid try-on. Sized in
- * container units so it scales with the phone instead of reflowing.
+ * A close crop of the device itself: the same bezel and camera bar as the
+ * kiosk, cut off above the stand. The screen is a size container.
  */
-function ProductScreen() {
-    const result = IMAGES.features.onlineResult;
+function MirrorPanel({ children }: { children: ReactNode }) {
+    return (
+        <div className="relative w-full rounded-[9%/5.4%] bg-[oklch(0.2_0.01_200)] p-[4%] pt-[10%] shadow-[0_50px_90px_-40px_oklch(0_0_0/0.85),inset_0_0_0_1px_oklch(1_0_0/0.16),inset_0_2px_0_oklch(1_0_0/0.12)]">
+            <div
+                aria-hidden
+                className="absolute top-[2.6%] left-1/2 flex h-[2.6%] w-[24%] -translate-x-1/2 items-center justify-center gap-[12%] rounded-full bg-black/80"
+            >
+                <span className="aspect-square h-[46%] rounded-full bg-[radial-gradient(circle_at_35%_35%,oklch(0.7_0.06_200),oklch(0.2_0.02_210)_60%)] shadow-[0_0_0_2px_oklch(0.3_0.01_200)]" />
+                <span className="aspect-square h-[22%] rounded-full bg-lagoon/80" />
+            </div>
+            <div className="@container relative aspect-[9/16] w-full overflow-hidden rounded-[4%/2.3%] bg-[oklch(0.16_0.012_200)]">
+                {children}
+            </div>
+        </div>
+    );
+}
+
+/**
+ * The device mid try-on: the blazer on her, every size with where it is,
+ * and the one she picked waiting in the stockroom. Sized in container
+ * units so it scales with the panel instead of reflowing.
+ */
+function RailScreen() {
+    const { t, locale } = useI18n();
+    const result = IMAGES.features.tryOnResult;
+    const stock = (where: Where) =>
+        ({
+            rail: t('features.onTheRail'),
+            stockroom: t('features.inTheStockroom'),
+            branch: t('features.atAnotherBranch'),
+        })[where];
 
     return (
         <div
             role="img"
-            aria-label="A product page for a blush linen blazer showing the try-on result, size M recommended at 94% fit, and a Try it on button"
-            className="absolute inset-0 flex flex-col text-bone"
+            aria-label={t('features.railScreen', {
+                brand: BRAND.name,
+                sizes: LOOK.sizes
+                    .map(({ size, where }) =>
+                        t('features.railScreenSize', {
+                            size,
+                            where: stock(where),
+                        }),
+                    )
+                    .join(t('features.listComma')),
+                size: LOOK.size,
+            })}
+            className="absolute inset-0 flex flex-col px-[5.5%] pt-[5%] pb-[5.5%] text-bone"
         >
-            <div className="flex h-[6.5%] shrink-0 items-end justify-between px-[9%] text-[length:3.9cqw] font-medium tabular-nums">
-                <span>21:40</span>
-                <span className="flex items-end gap-[1.2cqw]">
-                    <span className="h-[2cqw] w-[0.9cqw] rounded-full bg-bone/80" />
-                    <span className="h-[2.8cqw] w-[0.9cqw] rounded-full bg-bone/80" />
-                    <span className="h-[3.6cqw] w-[0.9cqw] rounded-full bg-bone/80" />
-                    <span className="ml-[1.4cqw] h-[3.4cqw] w-[6.4cqw] rounded-[1.2cqw] border border-bone/60 p-px">
-                        <span className="block h-full w-[70%] rounded-[0.6cqw] bg-bone/80" />
-                    </span>
+            <div className="flex shrink-0 items-center justify-between pb-[3.6cqw]">
+                <span className="font-display text-[length:3.6cqw] tracking-[0.32em] uppercase">
+                    {STORE.wordmark}
+                </span>
+                {/* The UI's languages (product codes); the page's own is lit. */}
+                <span className="flex gap-[2.4cqw] text-[length:3.2cqw] font-medium tracking-[0.14em]">
+                    {(['en', 'ar'] as const).map((code) => (
+                        <span
+                            key={code}
+                            className={
+                                code === locale ? 'text-bone' : 'text-smoke'
+                            }
+                        >
+                            {code.toUpperCase()}
+                        </span>
+                    ))}
                 </span>
             </div>
-            <div className="flex shrink-0 items-center justify-between px-[7%] pt-[4.5cqw] pb-[3.5cqw]">
-                <ChevronLeft className="size-[6cqw] text-mist" />
-                <span className="font-display text-[length:3.9cqw] tracking-[0.34em] text-bone uppercase">
-                    Maison Rimal
-                </span>
-                <ShoppingBag className="size-[6cqw] text-mist" />
-            </div>
-            <div className="relative mx-[5%] min-h-0 flex-1 overflow-hidden rounded-[6cqw]">
+
+            <div className="relative min-h-0 flex-1 overflow-hidden rounded-[4.5cqw]">
                 <Photo
                     id={result.id}
                     alt=""
                     sizes="240px"
                     widths={[320, 480]}
                     className="absolute inset-0 size-full"
-                    style={{ objectPosition: '45% 30%' }}
+                    style={{ objectPosition: '45% 34%' }}
                 />
-                <ScanOverlay className="opacity-50" />
-                <span className="absolute top-[3.5cqw] left-[3.5cqw] flex items-center gap-[2cqw] rounded-full bg-ink/65 px-[3cqw] py-[1.3cqw] text-[length:3.5cqw] font-medium tracking-[0.12em] text-bone uppercase backdrop-blur-md">
-                    <MockDot className="size-[2.2cqw]" />
-                    On you
+                <ScanOverlay className="opacity-40" />
+                <span className="absolute start-[3.5cqw] top-[3.5cqw] flex items-center gap-[1.8cqw] rounded-full bg-ink/65 px-[3cqw] py-[1.3cqw] text-[length:3.3cqw] font-medium tracking-[0.12em] text-bone uppercase backdrop-blur-md">
+                    {t('features.onYou')}
                 </span>
-                <span className="absolute right-[3.5cqw] bottom-[3.5cqw] rounded-full bg-ink/65 px-[3cqw] py-[1.3cqw] text-[length:3.5cqw] text-bone tabular-nums backdrop-blur-md">
-                    1.8 s
+                <span className="absolute end-[3.5cqw] top-[3.5cqw] flex flex-col gap-[2cqw] rounded-full bg-ink/55 p-[1.6cqw] backdrop-blur-md">
+                    {LOOK.colours.map((colour, i) => (
+                        <span
+                            key={colour.name}
+                            className={cn(
+                                'block size-[4.4cqw] rounded-full ring-1 ring-white/25',
+                                colour.swatch,
+                                i === 0 &&
+                                    'ring-2 ring-mint ring-offset-[0.8cqw] ring-offset-ink',
+                            )}
+                        />
+                    ))}
                 </span>
             </div>
-            <div className="shrink-0 px-[7%] pt-[5cqw] pb-[9%]">
+
+            <div className="shrink-0 pt-[4.4cqw]">
                 <div className="flex items-baseline justify-between gap-[2cqw]">
-                    <p className="font-display text-[length:5.6cqw] leading-tight font-medium whitespace-nowrap">
-                        Linen blazer, blush
+                    <p className="font-display text-[length:5.4cqw] leading-tight font-medium whitespace-nowrap">
+                        {t('features.lookName')}
                     </p>
-                    <p className="text-[length:4cqw] whitespace-nowrap text-mist tabular-nums">
-                        SAR 640
+                    <p className="text-[length:3.6cqw] whitespace-nowrap text-mist tabular-nums">
+                        {t('features.lookPrice')}
                     </p>
                 </div>
-                <div className="mt-[3.5cqw] flex items-center gap-[1.8cqw]">
-                    {['XS', 'S', 'M', 'L'].map((size) => (
+                <div className="mt-[3.2cqw] flex gap-[1.8cqw]">
+                    {LOOK.sizes.map(({ size, where }) => (
                         <span
                             key={size}
-                            className={cn(
-                                'grid h-[8.5cqw] min-w-[8.5cqw] place-items-center rounded-[2.6cqw] px-[1.6cqw] text-[length:3.6cqw] font-medium',
-                                size === 'M'
-                                    ? 'bg-champagne/15 text-champagne ring-1 ring-champagne'
-                                    : 'text-mist ring-1 ring-white/12',
-                            )}
+                            className="flex flex-1 flex-col items-center gap-[1.8cqw]"
                         >
-                            {size}
+                            <span
+                                className={cn(
+                                    'grid h-[8.4cqw] w-full place-items-center rounded-[2.4cqw] text-[length:3.6cqw] font-medium tabular-nums',
+                                    size === LOOK.size
+                                        ? 'bg-mint/15 text-mint ring-1 ring-mint'
+                                        : 'text-mist ring-1 ring-white/12',
+                                )}
+                            >
+                                {size}
+                            </span>
+                            <span
+                                className={cn(
+                                    'size-[1.8cqw] rounded-full',
+                                    WHERE_MARK[where],
+                                )}
+                            />
                         </span>
                     ))}
-                    <span className="ml-auto flex items-center gap-[1.4cqw] text-[length:3.6cqw] whitespace-nowrap text-mist">
-                        <Check className="size-[4cqw] text-lagoon" />
-                        94% fit
-                    </span>
                 </div>
-                <div className="mt-[5cqw] flex h-[13.5cqw] items-center justify-between rounded-[4cqw] bg-champagne px-[5cqw] text-ink shadow-[inset_0_1px_0_oklch(1_0_0/0.6)]">
-                    <span className="text-[length:4.4cqw] font-semibold">
-                        Try it on
+            </div>
+
+            <div className="mt-[4cqw] shrink-0 rounded-[4cqw] bg-white/[0.06] p-[3.6cqw] ring-1 ring-white/10">
+                <p className="text-[length:3.6cqw] leading-tight font-medium text-bone">
+                    {t('features.stockLine', {
+                        size: LOOK.size,
+                        where: stock('stockroom'),
+                    })}
+                </p>
+                <p className="mt-[1.2cqw] text-[length:3.3cqw] leading-snug text-smoke">
+                    {messageParts(t, 'features.stockLeft', {
+                        count: LOOK.left,
+                    })}
+                </p>
+                <div className="mt-[3.2cqw] flex h-[10.5cqw] items-center justify-between rounded-[3cqw] bg-mint px-[4cqw] text-ink">
+                    <span className="text-[length:3.8cqw] font-semibold whitespace-nowrap">
+                        {t('features.bringIt')}
                     </span>
-                    <Arabic className="text-[length:5.2cqw] leading-none font-bold">
-                        جرّبها
-                    </Arabic>
+                    <ArrowRight
+                        aria-hidden
+                        className="size-[4.2cqw] rtl:-scale-x-100"
+                    />
                 </div>
             </div>
         </div>
     );
 }
 
-/** Status dot for the mockups, sized in the device's container units. */
-function MockDot({ className }: { className?: string }) {
-    return (
-        <span
-            aria-hidden
-            className={cn(
-                'relative inline-block shrink-0 rounded-full bg-lagoon',
-                className,
-            )}
-        >
-            <span className="absolute inset-0 animate-pulse-ring rounded-full bg-lagoon" />
-        </span>
-    );
-}
-
 /* ------------------------------------------------------------------ */
-/* Row 2: in store, clienteling                                        */
+/* Row 2: run it from the cloud                                        */
 /* ------------------------------------------------------------------ */
 
-function StoreRow() {
+function CloudRow() {
+    const { t } = useI18n();
     const photo = IMAGES.features.boutique;
+    const row = cloudRow(t);
+    const [first] = devices(t);
 
     return (
         <article className="relative isolate grid gap-y-14 lg:grid-cols-12 lg:gap-x-8">
             <Glow
                 color="lagoon"
-                className="top-[4%] right-[4%] size-[30rem] opacity-35"
+                className="end-[4%] top-[4%] size-[30rem] opacity-35"
             />
             <Reveal
                 as="figure"
-                className="relative pb-[30%] sm:pb-[16%] lg:col-span-7 lg:col-start-6 lg:row-start-1 lg:self-start lg:pb-[72px]"
+                className="relative lg:col-span-7 lg:col-start-6 lg:row-start-1 lg:self-start"
             >
-                <div className="glass-rim relative ml-auto w-[80%] rounded-[32px] p-2 glass sm:w-[64%] lg:w-[70%]">
+                <div className="glass-rim relative ms-auto w-[80%] rounded-[32px] p-2 glass sm:w-[60%] lg:w-[64%]">
                     <div className="relative aspect-[4/5] overflow-hidden rounded-[24px]">
                         <Photo
                             id={photo.id}
-                            alt={photo.alt}
+                            alt={t('features.boutiqueAlt')}
                             ratio={1.25}
                             focus={photo.focus}
-                            sizes="(min-width: 1024px) 500px, 80vw"
+                            sizes="(min-width: 1024px) 460px, 80vw"
                             widths={[480, 800, 1200]}
                             className="absolute inset-0 size-full"
                         />
                     </div>
-                    <div className="absolute top-5 right-5 flex max-w-[15rem] items-start gap-2.5 rounded-[16px] px-3.5 py-3 glass-strong sm:top-7 sm:right-7">
-                        <LiveDot className="mt-1 shrink-0" />
+                    <div className="absolute end-4 top-4 max-w-[15rem] rounded-[16px] px-3.5 py-3 glass-strong sm:end-7 sm:top-7">
                         <p className="text-[12.5px] leading-snug text-bone">
-                            Noura A. just walked in
+                            {messageParts(t, 'features.mirrorAt', {
+                                mirror: first.name,
+                                place: first.place,
+                            })}
                             <span className="block text-[11px] text-mist">
-                                3 saved looks · Tahlia Street
+                                {messageParts(t, 'features.editLiveSince', {
+                                    edit: t('features.autumnEdit'),
+                                    time: STORE.edit.live,
+                                })}
                             </span>
                         </p>
                     </div>
                 </div>
 
-                <div className="absolute bottom-[4%] left-0 w-[88%] sm:w-[68%] lg:bottom-0 lg:w-[62%]">
-                    <TabletFrame
-                        orientation="landscape"
+                {/* Rides up over the photo; its height follows its content. */}
+                <div className="relative z-10 -mt-[38%] w-full sm:-mt-[34%] sm:w-[78%] lg:-mt-[46%] lg:w-[76%]">
+                    <BrowserFrame
+                        url={`cloud.${BRAND.domain}/${STORE.slug}`}
                         className="w-full"
-                        screenClassName="@container bg-[oklch(0.17_0.015_285)]"
+                        screenClassName="@container bg-[oklch(0.16_0.012_200/0.74)]"
                     >
-                        <StylistScreen />
-                    </TabletFrame>
+                        <CloudScreen />
+                    </BrowserFrame>
                 </div>
 
-                <figcaption className="absolute right-0 bottom-0 hidden w-[30%] text-right text-[13px] leading-snug text-smoke lg:block">
-                    <span className="mr-2 text-kicker font-medium whitespace-nowrap text-bone uppercase">
-                        Fig. 2
+                <figcaption className="mt-6 flex items-baseline gap-3 text-[13px] leading-snug text-smoke">
+                    <span className="text-kicker font-medium whitespace-nowrap text-bone uppercase">
+                        {t('features.fig', { number: 2 })}
                     </span>
-                    The salon on Tahlia Street, Jeddah. Thursday, 11:05.
+                    {t('features.fig2')}
                 </figcaption>
             </Reveal>
 
@@ -428,17 +583,12 @@ function StoreRow() {
                 className="lg:col-span-4 lg:col-start-1 lg:row-start-1 lg:self-start lg:pt-4"
             >
                 <RowText
-                    index={STORE.index}
-                    label={STORE.label}
-                    title={
-                        <>
-                            Your staff see what she tried on{' '}
-                            <em>last night.</em>
-                        </>
-                    }
-                    body={STORE.body}
-                    items={STORE.items}
-                    metric={STORE.metric}
+                    index={row.index}
+                    label={row.label}
+                    title={<Accent text={row.title} />}
+                    body={row.body}
+                    items={row.items}
+                    metric={row.metric}
                     metricFirst
                 />
             </Reveal>
@@ -446,73 +596,175 @@ function StoreRow() {
     );
 }
 
-/** Stylist tablet: the shopper's saved looks with sizes and stock. */
-function StylistScreen() {
+/**
+ * The cloud app's weekly view: most tried pieces, and the devices. Every
+ * size is a multiple of --u (1% of the mock browser window), boosted in
+ * narrow windows, where the devices column drops out so the table stays legible.
+ */
+function CloudScreen() {
+    const { t } = useI18n();
+    const pieces = mostTried(t);
+    const mirrors = devices(t);
+    const top = pieces[0];
+    const status = (device: Device) =>
+        device.online ? t('features.online') : t('features.updating');
+    const row =
+        'grid grid-cols-[1fr_calc(var(--u)*7)_calc(var(--u)*7)_calc(var(--u)*6.4)] items-center gap-x-[calc(var(--u)*1.6)]';
+
     return (
         <div
             role="img"
-            aria-label="Stylist tablet showing Noura A.'s three saved looks: a blush linen blazer in M on the rail, a lilac abaya in 54 in the stockroom, and a burgundy mini bag on the rail"
-            className="absolute inset-0 flex flex-col p-[4%] text-bone"
+            aria-label={t('features.cloudScreen', {
+                brand: BRAND.name,
+                store: t('features.store'),
+                pieces: pieces
+                    .map((piece) =>
+                        t('features.cloudScreenPiece', {
+                            name: piece.name,
+                            tried: piece.tried,
+                            sold: piece.sold,
+                        }),
+                    )
+                    .join(t('features.listSemicolon')),
+                devices: mirrors
+                    .map((device) =>
+                        t('features.cloudScreenDevice', {
+                            mirror: device.name,
+                            place: device.place,
+                            status: status(device).toLowerCase(),
+                        }),
+                    )
+                    .join(t('features.listSemicolon')),
+            })}
+            className="flex flex-col px-[calc(var(--u)*4.5)] pt-[calc(var(--u)*3.2)] pb-[calc(var(--u)*4)] text-bone [--u:1.42cqw] @md:[--u:1cqw]"
         >
-            <div className="flex items-center gap-[2.4cqw]">
-                <span className="grid size-[6.8cqw] shrink-0 place-items-center rounded-full bg-champagne/15 font-display text-[length:2.4cqw] text-champagne ring-1 ring-champagne/40">
-                    NA
+            <div className="flex items-center gap-[calc(var(--u)*3.4)] border-b border-white/10 pb-[calc(var(--u)*2.6)]">
+                <span className="font-display text-[length:calc(var(--u)*2.5)] tracking-[0.3em] whitespace-nowrap uppercase">
+                    {STORE.wordmark}
                 </span>
-                <div className="min-w-0 flex-1">
-                    <p className="truncate font-display text-[length:3.1cqw] leading-tight font-medium">
-                        Saved looks · Noura A.
+                <span className="flex gap-[calc(var(--u)*2.6)] text-[length:calc(var(--u)*2.2)] text-smoke">
+                    <span className="hidden @md:inline">
+                        {t('features.tabCatalogue')}
+                    </span>
+                    <span className="hidden @md:inline">
+                        {t('features.tabDevices')}
+                    </span>
+                    <span className="relative text-bone after:absolute after:inset-x-0 after:-bottom-[calc(var(--u)*2.7)] after:h-px after:bg-mint">
+                        {t('features.tabInsights')}
+                    </span>
+                </span>
+                <span className="ms-auto rounded-[calc(var(--u)*1.4)] px-[calc(var(--u)*1.8)] py-[calc(var(--u)*0.7)] text-[length:calc(var(--u)*2)] whitespace-nowrap text-mist ring-1 ring-white/12">
+                    {t('features.thisWeek')}
+                </span>
+            </div>
+
+            <div className="mt-[calc(var(--u)*3.4)] grid grid-cols-1 gap-[calc(var(--u)*4)] @md:grid-cols-[1.7fr_1fr]">
+                <div>
+                    <p className="font-display text-[length:calc(var(--u)*3.2)] leading-tight font-medium">
+                        {t('features.mostTried')}
                     </p>
-                    <p className="truncate text-[length:2.2cqw] text-smoke">
-                        Tried on last night, 21:40 · website
+                    <div
+                        className={cn(
+                            row,
+                            'mt-[calc(var(--u)*2.2)] border-b border-white/10 pb-[calc(var(--u)*1.2)] text-[length:calc(var(--u)*1.8)] tracking-[0.14em] text-smoke uppercase',
+                        )}
+                    >
+                        <span>{t('features.colPiece')}</span>
+                        <span className="text-end">
+                            {t('features.colTried')}
+                        </span>
+                        <span className="text-end">
+                            {t('features.colSold')}
+                        </span>
+                        <span className="text-end">
+                            {t('features.colRate')}
+                        </span>
+                    </div>
+                    <ul className="space-y-[calc(var(--u)*1.7)] pt-[calc(var(--u)*1.8)]">
+                        {pieces.map((piece) => (
+                            <li
+                                key={piece.name}
+                                className={cn(
+                                    row,
+                                    'text-[length:calc(var(--u)*2.2)] tabular-nums',
+                                )}
+                            >
+                                <span className="flex min-w-0 items-center gap-[calc(var(--u)*1.8)]">
+                                    <span className="relative aspect-[4/5] w-[calc(var(--u)*5.2)] shrink-0 overflow-hidden rounded-[calc(var(--u)*1)] ring-1 ring-white/10">
+                                        <Photo
+                                            id={piece.id}
+                                            alt=""
+                                            ratio={1.25}
+                                            focus={piece.focus}
+                                            zoom={piece.zoom}
+                                            sizes="40px"
+                                            widths={[80, 120]}
+                                            className="absolute inset-0 size-full"
+                                        />
+                                    </span>
+                                    <span
+                                        className={cn(
+                                            'truncate',
+                                            piece === top
+                                                ? 'text-bone'
+                                                : 'text-mist',
+                                        )}
+                                    >
+                                        {piece.name}
+                                    </span>
+                                </span>
+                                <span className="text-end text-bone">
+                                    {piece.tried}
+                                </span>
+                                <span className="text-end text-mist">
+                                    {piece.sold}
+                                </span>
+                                <span className="text-end text-mint">
+                                    {Math.round(
+                                        (piece.sold / piece.tried) * 100,
+                                    )}
+                                    %
+                                </span>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+
+                <div className="hidden flex-col border-s border-white/10 ps-[calc(var(--u)*3.4)] @md:flex">
+                    <p className="font-display text-[length:calc(var(--u)*3.2)] leading-tight font-medium">
+                        {t('features.devices')}
+                    </p>
+                    {/* Status in words, no status dots. */}
+                    <ul className="mt-[calc(var(--u)*2.4)] space-y-[calc(var(--u)*2.2)]">
+                        {mirrors.map((device) => (
+                            <li
+                                key={device.name}
+                                className="min-w-0 leading-tight"
+                            >
+                                <span className="block truncate text-[length:calc(var(--u)*2.2)]">
+                                    {device.name}
+                                </span>
+                                <span className="block truncate text-[length:calc(var(--u)*1.9)] text-smoke">
+                                    {messageParts(t, 'features.placeStatus', {
+                                        place: device.place,
+                                        status: status(device),
+                                    })}
+                                </span>
+                            </li>
+                        ))}
+                    </ul>
+                    <p className="mt-auto border-t border-white/10 pt-[calc(var(--u)*1.8)] text-[length:calc(var(--u)*1.9)] leading-snug text-smoke">
+                        <span className="block text-mist">
+                            {messageParts(t, 'features.editPieces', {
+                                edit: t('features.autumnEdit'),
+                                count: STORE.edit.pieces,
+                            })}
+                        </span>
+                        {messageParts(t, 'features.onEveryMirror', {
+                            time: STORE.edit.live,
+                        })}
                     </p>
                 </div>
-                <span className="flex shrink-0 items-center gap-[1.4cqw] rounded-full bg-lagoon/15 px-[2cqw] py-[1cqw] text-[length:2cqw] font-medium tracking-[0.12em] text-bone uppercase">
-                    <MockDot className="size-[1.5cqw]" />
-                    In store
-                </span>
-            </div>
-
-            <div className="mt-[3.5%] grid min-h-0 flex-1 grid-cols-3 gap-[3%]">
-                {SAVED_LOOKS.map((look) => (
-                    <div key={look.name} className="flex min-h-0 flex-col">
-                        <div className="relative min-h-0 flex-1 overflow-hidden rounded-[2cqw] ring-1 ring-white/10">
-                            <Photo
-                                id={look.id}
-                                alt=""
-                                ratio={1.2}
-                                focus={look.focus}
-                                zoom={look.zoom}
-                                sizes="140px"
-                                widths={[200, 320]}
-                                className="absolute inset-0 size-full"
-                            />
-                            <span className="absolute top-[1.5cqw] left-[1.5cqw] grid h-[4cqw] min-w-[4cqw] place-items-center rounded-[1.2cqw] bg-ink/70 px-[1cqw] text-[length:2cqw] font-medium text-bone tabular-nums">
-                                {look.size}
-                            </span>
-                        </div>
-                        <p className="mt-[1.5cqw] truncate text-[length:2.3cqw] font-medium">
-                            {look.name}
-                        </p>
-                        <p className="flex items-center gap-[1cqw] truncate text-[length:2cqw] text-smoke">
-                            <span
-                                className={cn(
-                                    'size-[1.4cqw] shrink-0 rounded-full',
-                                    look.tone,
-                                )}
-                            />
-                            {look.stock}
-                        </p>
-                    </div>
-                ))}
-            </div>
-
-            <div className="mt-[3.5%] flex items-center justify-between gap-[2cqw] border-t border-white/10 pt-[3%]">
-                <p className="truncate text-[length:2.2cqw] text-mist">
-                    On the rail, same size: Linen abaya, sand · 54
-                </p>
-                <span className="shrink-0 rounded-[2cqw] bg-champagne px-[2.6cqw] py-[1.5cqw] text-[length:2.2cqw] font-semibold text-ink">
-                    Send to fitting room 3
-                </span>
             </div>
         </div>
     );
@@ -523,63 +775,82 @@ function StylistScreen() {
 /* ------------------------------------------------------------------ */
 
 function EyewearRow() {
+    const { t } = useI18n();
+    const row = eyewearRow(t);
+
     return (
         <article className="relative isolate grid gap-y-14 lg:grid-cols-12 lg:gap-x-8">
             <Glow
-                color="amethyst"
-                className="top-[10%] left-[8%] size-[32rem] opacity-40"
+                color="jade"
+                className="start-[8%] top-[10%] size-[32rem] opacity-40"
             />
             <Reveal className="lg:col-span-7">
-                <EyewearPlate />
+                <EyewearPlate metric={row.metric} />
             </Reveal>
             <Reveal
                 delay={120}
                 className="lg:col-span-4 lg:col-start-9 lg:self-center"
             >
                 <RowText
-                    index={EYEWEAR.index}
-                    label={EYEWEAR.label}
-                    title={
-                        <>
-                            Frames, measured to <em>the millimetre.</em>
-                        </>
-                    }
-                    body={EYEWEAR.body}
-                    items={EYEWEAR.items}
+                    index={row.index}
+                    label={row.label}
+                    title={<Accent text={row.title} />}
+                    body={row.body}
+                    items={row.items}
                 />
             </Reveal>
         </article>
     );
 }
 
-const CHIPS: {
+type Chip = {
     key: Exclude<MeasureKey, 'pd'>;
     label: string;
     value: string;
     /** Desktop placement, relative to the plate. */
     place: string;
-}[] = [
-    {
-        key: 'width',
-        label: 'Frame width',
-        value: `${FRAME_MM} mm`,
-        place: 'lg:bottom-[calc(100%+22px)] lg:left-[calc(70.7%+18px)]',
+};
+
+/*
+ * Leaders from a measurement out to its reading, in percent of the plate.
+ * Left to right the PD figure sits on the plate's right and the bridge
+ * reading on its left; right to left the readings swap sides (the plate
+ * itself, a photo with lines on it, is never mirrored).
+ */
+const LEADERS = {
+    ltr: {
+        pd: { from: PUPILS.right, to: 100, reverse: false },
+        bridge: { from: 0, to: BRIDGE.left, reverse: true },
     },
-    {
-        key: 'bridge',
-        label: 'Bridge',
-        value: '18 mm',
-        place: 'lg:top-[41%] lg:right-[calc(100%-28px)] lg:-translate-y-1/2',
+    rtl: {
+        pd: { from: 0, to: PUPILS.left, reverse: true },
+        bridge: { from: BRIDGE.right, to: 100, reverse: false },
     },
-];
+};
 
 /**
  * The section's signature: the eyewear portrait drawn up as a technical
  * plate. Dimension lines draw in when it scrolls into view; each reading is
  * a toggle that isolates its measurement on the face.
  */
-function EyewearPlate() {
+function EyewearPlate({ metric }: { metric: Metric }) {
+    const { t, dir } = useI18n();
     const photo = IMAGES.features.eyewear;
+    const leaders = LEADERS[dir];
+    const chips: Chip[] = [
+        {
+            key: 'width',
+            label: t('features.frameWidth'),
+            value: t('features.measure', { value: FRAME_MM }),
+            place: 'lg:bottom-[calc(100%+22px)] lg:left-[calc(70.7%+18px)]',
+        },
+        {
+            key: 'bridge',
+            label: t('features.bridge'),
+            value: t('features.measure', { value: 18 }),
+            place: 'lg:end-[calc(100%-28px)] lg:top-[41%] lg:-translate-y-1/2',
+        },
+    ];
     const [ref, drawn] = useInView({ rootMargin: '0px 0px -25% 0px' });
     const [pinned, setPinned] = useState<MeasureKey | null>(null);
     const [previewed, setPreviewed] = useState<MeasureKey | null>(null);
@@ -602,7 +873,7 @@ function EyewearPlate() {
     return (
         <figure
             ref={ref}
-            className="relative max-w-[34rem] pt-12 lg:max-w-none lg:pr-[72px] lg:pl-[112px] xl:pl-[124px]"
+            className="relative max-w-[34rem] pt-12 lg:max-w-none lg:ps-[112px] lg:pe-[72px] xl:ps-[124px]"
         >
             <div className="relative">
                 <div className="relative aspect-[4/5]">
@@ -624,7 +895,7 @@ function EyewearPlate() {
                     <div className="absolute inset-0 overflow-hidden rounded-[28px]">
                         <Photo
                             id={photo.id}
-                            alt={photo.alt}
+                            alt={t('features.eyewearAlt')}
                             ratio={1.25}
                             sizes="(min-width: 1024px) 520px, 92vw"
                             widths={[480, 800, 1200]}
@@ -635,14 +906,14 @@ function EyewearPlate() {
                     {/* Drawn over the photo, deliberately not clipped by its radius. */}
                     <div
                         aria-hidden
-                        className="pointer-events-none absolute inset-0 [filter:drop-shadow(0_0_1.5px_oklch(0.145_0.018_285/0.9))]"
+                        className="pointer-events-none absolute inset-0 [filter:drop-shadow(0_0_1.5px_oklch(0.145_0.014_200/0.9))]"
                     >
                         <div className={tone('width')}>
                             {[FRAME.left, FRAME.right].map((x, i) => (
                                 <span
                                     key={x}
                                     className={cn(
-                                        'absolute top-[-14px] w-px origin-top bg-[repeating-linear-gradient(to_bottom,var(--color-champagne)_0_3px,transparent_3px_6px)] transition-transform duration-[900ms] ease-glass',
+                                        'absolute top-[-14px] w-px origin-top bg-[repeating-linear-gradient(to_bottom,var(--color-mint)_0_3px,transparent_3px_6px)] transition-transform duration-[900ms] ease-glass',
                                         drawn ? 'scale-y-100' : 'scale-y-0',
                                     )}
                                     style={{
@@ -671,8 +942,7 @@ function EyewearPlate() {
                                 />
                             ))}
                             <Leader
-                                from={PUPILS.right}
-                                to={100}
+                                {...leaders.pd}
                                 y={PUPILS.y}
                                 drawn={drawn}
                                 delay={900}
@@ -688,12 +958,10 @@ function EyewearPlate() {
                                 delay={700}
                             />
                             <Leader
-                                from={0}
-                                to={BRIDGE.left}
+                                {...leaders.bridge}
                                 y={BRIDGE.y}
                                 drawn={drawn}
                                 delay={1000}
-                                reverse
                             />
                         </div>
                     </div>
@@ -705,10 +973,13 @@ function EyewearPlate() {
                  * phones they fall into a row under it.
                  */}
                 <div className="mt-5 flex flex-wrap gap-2 lg:mt-0 lg:block">
-                    {CHIPS.map((chip) => (
+                    {chips.map((chip) => (
                         <MeasureButton
                             key={chip.key}
-                            label={`Highlight ${chip.label}, ${chip.value}`}
+                            label={t('features.highlight', {
+                                label: chip.label,
+                                value: chip.value,
+                            })}
                             className={cn('lg:absolute', chip.place)}
                             {...control(chip.key)}
                         >
@@ -723,24 +994,20 @@ function EyewearPlate() {
 
                 {/* PD: the leader ends in the headline figure itself. */}
                 <MeasureButton
-                    label={`Highlight pupillary distance, ${EYEWEAR.metric.value} mm`}
-                    className="mt-9 block w-full text-left lg:absolute lg:top-[calc(35%-84px)] lg:left-[calc(100%-22px)] lg:mt-0 lg:w-[176px]"
+                    label={t('features.highlightPd', { value: metric.value })}
+                    className="mt-9 block w-full text-start lg:absolute lg:start-[calc(100%-22px)] lg:top-[calc(35%-84px)] lg:mt-0 lg:w-[176px]"
                     ring={false}
                     {...control('pd')}
                 >
-                    <MetricFigure
-                        metric={EYEWEAR.metric}
-                        lit={active === 'pd'}
-                        split
-                    />
+                    <MetricFigure metric={metric} lit={active === 'pd'} split />
                 </MeasureButton>
             </div>
 
             <figcaption className="mt-8 flex items-baseline gap-3 text-[13px] leading-snug text-smoke lg:mt-6">
                 <span className="text-kicker font-medium whitespace-nowrap text-bone uppercase">
-                    Fig. 3
+                    {t('features.fig', { number: 3 })}
                 </span>
-                Square acetate, emerald. Measured from one selfie in 0.9 s.
+                {t('features.fig3')}
             </figcaption>
         </figure>
     );
@@ -787,8 +1054,8 @@ function MeasureButton({
             }}
             onBlur={() => onPreview(false)}
             className={cn(
-                'cursor-pointer rounded-[14px] transition-[scale,box-shadow,opacity] duration-[380ms] ease-glass focus-visible:ring-2 focus-visible:ring-champagne/80 focus-visible:ring-offset-4 focus-visible:ring-offset-ink focus-visible:outline-none active:scale-[0.97]',
-                lit && ring && 'ring-1 ring-champagne/70',
+                'cursor-pointer rounded-[14px] transition-[scale,box-shadow,opacity] duration-[380ms] ease-glass focus-visible:ring-2 focus-visible:ring-mint/80 focus-visible:ring-offset-4 focus-visible:ring-offset-ink focus-visible:outline-none active:scale-[0.97]',
+                lit && ring && 'ring-1 ring-mint/70',
                 dimmed && 'opacity-50',
                 className,
             )}
@@ -809,12 +1076,12 @@ function Ruler({ drawn }: { drawn: boolean }) {
                 drawn ? 'scale-x-100' : 'scale-x-0',
             )}
         >
-            <span className="absolute inset-x-0 bottom-0 h-px bg-champagne/80" />
+            <span className="absolute inset-x-0 bottom-0 h-px bg-mint/80" />
             <span
                 className="absolute inset-x-0 bottom-0 h-[7px]"
                 style={{
                     backgroundImage:
-                        'linear-gradient(to right, oklch(0.86 0.075 82 / 0.7) 1px, transparent 1px)',
+                        'linear-gradient(to right, oklch(0.84 0.12 160 / 0.7) 1px, transparent 1px)',
                     backgroundSize: `${at(10)} 100%`,
                 }}
             />
@@ -822,12 +1089,12 @@ function Ruler({ drawn }: { drawn: boolean }) {
                 className="absolute inset-x-0 bottom-0 h-1"
                 style={{
                     backgroundImage:
-                        'linear-gradient(to right, oklch(0.86 0.075 82 / 0.45) 1px, transparent 1px)',
+                        'linear-gradient(to right, oklch(0.84 0.12 160 / 0.45) 1px, transparent 1px)',
                     backgroundSize: `${at(5)} 100%`,
                 }}
             />
-            <span className="absolute bottom-0 left-0 h-3 w-px bg-champagne" />
-            <span className="absolute right-0 bottom-0 h-3 w-px bg-champagne" />
+            <span className="absolute bottom-0 left-0 h-3 w-px bg-mint" />
+            <span className="absolute right-0 bottom-0 h-3 w-px bg-mint" />
             {[0, 50, 100].map((mm) => (
                 <span
                     key={mm}
@@ -858,7 +1125,7 @@ function DimLine({
     return (
         <span
             className={cn(
-                'absolute h-px origin-left bg-champagne transition-transform duration-[900ms] ease-glass',
+                'absolute h-px origin-left bg-mint transition-transform duration-[900ms] ease-glass',
                 drawn ? 'scale-x-100' : 'scale-x-0',
             )}
             style={{
@@ -868,8 +1135,8 @@ function DimLine({
                 transitionDelay: `${delay}ms`,
             }}
         >
-            <span className="absolute top-1/2 left-0 h-2.5 w-px -translate-y-1/2 bg-champagne" />
-            <span className="absolute top-1/2 right-0 h-2.5 w-px -translate-y-1/2 bg-champagne" />
+            <span className="absolute top-1/2 left-0 h-2.5 w-px -translate-y-1/2 bg-mint" />
+            <span className="absolute top-1/2 right-0 h-2.5 w-px -translate-y-1/2 bg-mint" />
         </span>
     );
 }
@@ -893,7 +1160,7 @@ function Leader({
     return (
         <span
             className={cn(
-                'absolute hidden h-px bg-champagne/60 transition-transform duration-[700ms] ease-glass lg:block',
+                'absolute hidden h-px bg-mint/60 transition-transform duration-[700ms] ease-glass lg:block',
                 reverse ? 'origin-right' : 'origin-left',
                 drawn ? 'scale-x-100' : 'scale-x-0',
             )}
@@ -911,12 +1178,12 @@ function Reticle({ x, y, drawn }: { x: number; y: number; drawn: boolean }) {
     return (
         <span
             className={cn(
-                'absolute size-4 -translate-x-1/2 -translate-y-1/2 rounded-full border border-champagne transition-[scale,opacity] duration-[600ms] ease-glass',
+                'absolute size-4 -translate-x-1/2 -translate-y-1/2 rounded-full border border-mint transition-[scale,opacity] duration-[600ms] ease-glass',
                 drawn ? 'scale-100 opacity-100' : 'scale-50 opacity-0',
             )}
             style={{ left: `${x}%`, top: `${y}%`, transitionDelay: '400ms' }}
         >
-            <span className="absolute top-1/2 left-1/2 size-[3px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-champagne" />
+            <span className="absolute top-1/2 left-1/2 size-[3px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-mint" />
         </span>
     );
 }
@@ -943,14 +1210,15 @@ function MetricFigure({
         <span
             className={cn(
                 'block font-display text-[clamp(4.25rem,2.5rem+4.4vw,7rem)] leading-[0.8] font-medium tracking-[-0.04em] whitespace-nowrap tabular-nums transition-colors duration-[380ms] ease-glass',
-                lit ? 'text-champagne' : 'text-bone',
+                lit ? 'text-mint' : 'text-bone',
+                metric.ltr && 'bidi-ltr',
                 split && 'lg:text-[length:5.5rem] lg:leading-[72px]',
             )}
         >
             {metric.value}
             <span
                 className={cn(
-                    'font-normal tracking-normal text-champagne',
+                    'font-normal tracking-normal text-mint',
                     metric.unitClassName,
                     // After the size: tailwind-merge drops leading set before it.
                     'leading-none',
@@ -961,7 +1229,7 @@ function MetricFigure({
         </span>
     );
     const caption = (
-        <span className="block max-w-[16ch] pb-1 text-[13.5px] leading-snug text-smoke lg:pb-0">
+        <span className="block max-w-[16ch] pb-1 text-[13.5px] leading-snug text-balance text-smoke lg:pb-0">
             {metric.caption}
         </span>
     );
@@ -970,7 +1238,7 @@ function MetricFigure({
         return (
             <span className="flex items-end gap-5 lg:block">
                 {figure}
-                <span className="hidden h-px bg-champagne/60 lg:mt-3 lg:mb-3 lg:block" />
+                <span className="hidden h-px bg-mint/60 lg:mt-3 lg:mb-3 lg:block" />
                 {caption}
             </span>
         );
@@ -1005,13 +1273,13 @@ function RowText({
     return (
         <div className="flex max-w-[34rem] flex-col lg:max-w-none">
             <p className="text-kicker font-medium text-smoke uppercase">
-                <span className="text-champagne tabular-nums">{index}</span>
+                <span className="text-mint tabular-nums">{index}</span>
                 <span aria-hidden className="mx-2.5 text-white/25">
                     ·
                 </span>
                 {label}
             </p>
-            <h3 className="mt-5 font-display text-display-md font-medium text-balance text-bone [&_em]:font-normal [&_em]:text-champagne [&_em]:italic">
+            <h3 className="mt-5 font-display text-display-md font-medium text-balance text-bone [&_em]:font-normal [&_em]:text-mint [&_em]:italic">
                 {title}
             </h3>
             <p className="mt-5 text-[16.5px] leading-relaxed text-pretty text-mist">

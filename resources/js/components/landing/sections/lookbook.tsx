@@ -7,101 +7,86 @@ import {
     useSyncExternalStore,
 } from 'react';
 import type { CSSProperties, KeyboardEvent } from 'react';
+import { useI18n } from '@/hooks/use-i18n';
 import { cn } from '@/lib/utils';
-import { IMAGES } from '../images';
-import type { LookbookCategory, LookbookImage } from '../images';
+import type { LandingLook } from '@/types/landing';
+import { Accent } from '../accent';
+import { hasSection, useContent, useLanding } from '../landing-data';
+import { useOrderDialog } from '../order-dialog';
 import { Photo } from '../photo';
 import { Container, cta, Glow, SectionHeader, useInView } from '../primitives';
 import { ScanOverlay } from '../tryon-ui';
 
-// Placeholder content: replace before launch. -----------------------------
+// The looks, their categories and each category's weekly note come from the
+// admin panel (`landing.lookbook`: published looks in their order, and only
+// the categories that have one). The "All" note, the hints and the open
+// frame's lines are site copy (sections.lookbook.* settings).
 
-type Filter = 'all' | LookbookCategory;
+/** "all", or a category's slug. */
+type Filter = string;
 
-const FILTERS: { id: Filter; label: string }[] = [
-    { id: 'all', label: 'All' },
-    { id: 'abayas', label: 'Abayas' },
-    { id: 'everyday', label: 'Everyday' },
-    { id: 'evening', label: 'Evening' },
-    { id: 'eyewear', label: 'Eyewear' },
-];
+type FilterOption = { id: Filter; label: string };
 
 /** The weekly trend note that opens the grid for each filter. */
-const NOTES: Record<
-    Filter,
-    { kicker: string; figure: string; unit: string; line: string }
-> = {
-    all: {
-        kicker: 'This week’s edit',
-        figure: String(IMAGES.lookbook.length),
-        unit: 'looks',
-        line: 'Chosen from 71,400 try-ons across eight cities, from Riyadh to Muscat.',
-    },
-    abayas: {
-        kicker: 'Abayas · this week',
-        figure: '54',
-        unit: 'most tried size',
-        line: 'Sizes run 52 to 60. Navy and black satin led the week in Riyadh and Jeddah.',
-    },
-    everyday: {
-        kicker: 'Everyday · this week',
-        figure: '38%',
-        unit: 'went into the bag',
-        line: 'The best-converting edit of the week: a denim jacket, a camel coat, a navy suit.',
-    },
-    evening: {
-        kicker: 'Evening · this week',
-        figure: '11 pm',
-        unit: 'peak try-on hour',
-        line: 'Occasion wear is tried on late, and most of all in the fortnight before Eid.',
-    },
-    eyewear: {
-        kicker: 'Eyewear · this week',
-        figure: '41%',
-        unit: 'tortoiseshell',
-        line: 'Share of all frames tried this week. Clear acetate is climbing in Jeddah.',
-    },
+type Note = {
+    kicker: string;
+    figure: string | null;
+    unit: string | null;
+    line: string | null;
 };
 
-/*
- * The edit, in display order, with each look's render time in seconds.
- * The first row mirrors the lede (Riyadh abaya, Dubai silk, Doha frames);
- * the rest is sequenced so the masonry columns end at similar heights and
- * no column stacks two menswear looks.
- */
-const EDIT: [id: string, seconds: number][] = [
-    ['photo-1762605135318-f34a993cbcf0', 1.7], // Quilted abaya, Riyadh
-    ['photo-1546190075-ed60eaed45e4', 1.9], // Silk gown, Dubai
-    ['photo-1618077360395-f3068be8e001', 1.6], // Round acetate, Doha
-    ['photo-1551537482-f2075a1d41f2', 1.5], // Denim jacket, Manama
-    ['photo-1609357605129-26f69add5d6e', 1.8], // Chiffon maxi, Muscat
-    ['photo-1739829417987-28d43f9a6b49', 1.7], // Satin abaya, Jeddah
-    ['photo-1618244972963-dbee1a7edc95', 1.8], // Camel coat, Kuwait City
-    ['photo-1583391733956-3750e0ff4e8b', 1.9], // Kurta and sharara, Dubai
-    ['photo-1617137968427-85924c800a22', 1.6], // Navy suit, Doha
-    ['photo-1531384441138-2736e62e0919', 1.8], // Clear frames, Jeddah
-    ['photo-1756412066366-b46dafaca253', 1.7], // Bisht, Riyadh
-    ['photo-1552942362-50ecec295033', 1.6], // Cat-eye optical, Abu Dhabi
-];
+type Look = LandingLook & { number: string };
 
-// -------------------------------------------------------------------------
-
-type Look = LookbookImage & { number: string; seconds: number };
-
-const editOrder = new Map(EDIT.map(([id], index) => [id, index]));
-
-// Photos missing from EDIT still appear, after the curated ones.
-const LOOKS: Look[] = [...IMAGES.lookbook]
-    .sort(
-        (a, b) =>
-            (editOrder.get(a.id) ?? EDIT.length) -
-            (editOrder.get(b.id) ?? EDIT.length),
-    )
-    .map((image, index) => ({
-        ...image,
+/** The filters, the notes and the numbered looks, from the payload. */
+function useEdit(): {
+    filters: FilterOption[];
+    notes: Map<Filter, Note>;
+    looks: Look[];
+} {
+    const { lookbook } = useLanding();
+    const { t } = useI18n();
+    const allKicker = useContent('sections.lookbook.all_kicker');
+    const allNote = useContent('sections.lookbook.all_note');
+    const allUnit = useContent('sections.lookbook.all_unit');
+    const categorySuffix = useContent('sections.lookbook.category_suffix');
+    const looks = lookbook.looks.map((look, index) => ({
+        ...look,
         number: String(index + 1).padStart(2, '0'),
-        seconds: EDIT[editOrder.get(image.id) ?? -1]?.[1] ?? 1.8,
     }));
+
+    return {
+        filters: [
+            { id: 'all', label: t('lookbook.filterAll') },
+            ...lookbook.categories.map((category) => ({
+                id: category.slug,
+                label: category.name,
+            })),
+        ],
+        notes: new Map<Filter, Note>([
+            [
+                'all',
+                {
+                    kicker: allKicker,
+                    figure: String(looks.length),
+                    unit: allUnit || null,
+                    line: allNote || null,
+                },
+            ],
+            ...lookbook.categories.map((category): [Filter, Note] => [
+                category.slug,
+                {
+                    kicker: categorySuffix
+                        ? `${category.name} · ${categorySuffix}`
+                        : category.name,
+                    figure: category.stat?.figure ?? null,
+                    unit: category.stat?.unit ?? null,
+                    line: category.note,
+                },
+            ]),
+        ]),
+        looks,
+    };
+}
 
 /** On phones the "All" edit opens with this many looks, then a button. */
 const MOBILE_PREVIEW = 5;
@@ -201,9 +186,34 @@ function prefersReducedMotion() {
 }
 
 export default function Lookbook() {
+    const landing = useLanding();
+
+    // Nothing published yet: no section (and no links to it).
+    if (!hasSection(landing, 'lookbook')) {
+        return null;
+    }
+
+    return <Edit />;
+}
+
+function Edit() {
+    const { filters, notes, looks } = useEdit();
+    const label = useContent('sections.lookbook.label');
+    const title = useContent('sections.lookbook.title');
+    const lede = useContent('sections.lookbook.lede');
+    const footnote = useContent('sections.lookbook.footnote');
+    const cadence = useContent('sections.lookbook.cadence');
+    const hint = useContent('sections.lookbook.hint');
+    const touchHint = useContent('sections.lookbook.hint_touch');
+    const { locale, t, formatNumber } = useI18n();
     const columns = useColumns();
-    const [active, setActive] = useState<Filter>('all');
-    const [shown, setShown] = useState<Filter>('all');
+    const [picked, setActive] = useState<Filter>('all');
+    const [showing, setShown] = useState<Filter>('all');
+    // A category can drop out of the edit under a kept filter: show all.
+    const known = (filter: Filter) =>
+        filters.some((option) => option.id === filter) ? filter : 'all';
+    const active = known(picked);
+    const shown = known(showing);
     const [leaving, setLeaving] = useState(false);
     const [expanded, setExpanded] = useState(false);
     const [demo, setDemo] = useState(false);
@@ -263,8 +273,8 @@ export default function Lookbook() {
 
     const matching =
         shown === 'all'
-            ? LOOKS
-            : LOOKS.filter((look) => look.category === shown);
+            ? looks
+            : looks.filter((look) => look.category === shown);
     const collapsed =
         columns === 1 &&
         shown === 'all' &&
@@ -281,8 +291,8 @@ export default function Lookbook() {
     ];
     const stacks = layout(tiles, columns);
     const offsets = COLUMN_OFFSETS[columns] ?? [];
-    const activeLabel = FILTERS.find((filter) => filter.id === active)?.label;
-    const activeCount = LOOKS.filter(
+    const activeLabel = filters.find((filter) => filter.id === active)?.label;
+    const activeCount = looks.filter(
         (look) => active === 'all' || look.category === active,
     ).length;
 
@@ -302,46 +312,47 @@ export default function Lookbook() {
 
     return (
         <section id="lookbook" className="relative isolate py-24 md:py-36">
-            <Glow color="rose" className="top-[26rem] -left-48 size-[32rem]" />
             <Glow
-                color="coral"
-                className="-right-48 bottom-[18%] size-[30rem] opacity-25"
+                color="lagoon"
+                className="-start-48 top-[26rem] size-[32rem]"
+            />
+            <Glow
+                color="jade"
+                className="-end-48 bottom-[18%] size-[30rem] opacity-25"
             />
 
             <Container>
                 <SectionHeader
                     index="04"
-                    label="Lookbook"
-                    labelAr="معرض الإطلالات"
-                    title={
-                        <>
-                            Looks our shoppers <em>tried on</em> this week.
-                        </>
-                    }
-                    lede="Abayas in Riyadh, silk in Dubai, frames in Doha. A few of the ten thousand looks tried on today."
+                    label={label}
+                    title={<Accent text={title} />}
+                    lede={lede}
                 />
 
                 <div className="mt-14 grid gap-5 md:mt-20 md:grid-cols-12 md:items-center md:gap-x-8">
                     <FilterTabs
+                        filters={filters}
                         active={active}
                         onSelect={select}
                         className="md:col-span-7 lg:col-span-8"
                     />
                     <p className="flex items-center gap-3 text-[13px] leading-snug text-smoke md:col-span-5 lg:col-span-4">
                         <CompareGlyph />
-                        <span className="pointer-coarse:hidden">
-                            Hover a look for before and after.
-                        </span>
+                        <span className="pointer-coarse:hidden">{hint}</span>
                         <span className="hidden pointer-coarse:inline">
-                            Tap a look for before and after.
+                            {touchHint}
                         </span>
                     </p>
                 </div>
 
                 <p aria-live="polite" className="sr-only">
                     {active === 'all'
-                        ? `Showing all ${activeCount} looks`
-                        : `Showing ${activeCount} ${activeLabel?.toLowerCase()} looks`}
+                        ? t('lookbook.showingAll', { count: activeCount })
+                        : t('lookbook.showingCategory', {
+                              count: activeCount,
+                              category:
+                                  activeLabel?.toLocaleLowerCase(locale) ?? '',
+                          })}
                 </p>
 
                 <div
@@ -368,7 +379,10 @@ export default function Lookbook() {
                                         return (
                                             <TrendNote
                                                 key={`note-${shown}`}
-                                                filter={shown}
+                                                note={
+                                                    notes.get(shown) ??
+                                                    notes.get('all')
+                                                }
                                                 leaving={leaving}
                                             />
                                         );
@@ -378,6 +392,7 @@ export default function Lookbook() {
                                         return (
                                             <OpenSlot
                                                 key={`slot-${shown}`}
+                                                number={looks.length + 1}
                                                 leaving={leaving}
                                             />
                                         );
@@ -412,33 +427,41 @@ export default function Lookbook() {
                             )}
                         >
                             <Plus aria-hidden className="size-4" />
-                            Show {matching.length - MOBILE_PREVIEW} more looks
+                            {fill(
+                                t('lookbook.showMore', { count: '{count}' }),
+                                {
+                                    count: formatNumber(
+                                        matching.length - MOBILE_PREVIEW,
+                                    ),
+                                },
+                            )}
                         </button>
                     </div>
                 ) : null}
 
-                <div className="mt-14 flex flex-col gap-2 border-t border-white/10 pt-5 text-[13px] leading-relaxed text-smoke md:mt-20 md:flex-row md:items-baseline md:justify-between md:gap-8">
-                    <p>
-                        Photos shown with permission. Try-on renders are
-                        generated in under two seconds.
-                    </p>
-                    <p className="shrink-0">New edit every Sunday</p>
-                </div>
+                {footnote || cadence ? (
+                    <div className="mt-14 flex flex-col gap-2 border-t border-white/10 pt-5 text-[13px] leading-relaxed text-smoke md:mt-20 md:flex-row md:items-baseline md:justify-between md:gap-8">
+                        <p>{footnote}</p>
+                        <p className="shrink-0">{cadence}</p>
+                    </div>
+                ) : null}
             </Container>
         </section>
     );
 }
 
 /**
- * Glass segmented control. The champagne indicator is a second copy of the
+ * Glass segmented control. The mint indicator is a second copy of the
  * labels, set in ink and clipped to the selected tab, so the text changes
  * colour exactly where the indicator passes over it.
  */
 function FilterTabs({
+    filters,
     active,
     onSelect,
     className,
 }: {
+    filters: FilterOption[];
     active: Filter;
     onSelect: (filter: Filter) => void;
     className?: string;
@@ -446,7 +469,8 @@ function FilterTabs({
     const trackRef = useRef<HTMLDivElement>(null);
     const indicatorRef = useRef<HTMLDivElement>(null);
     const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
-    const activeIndex = FILTERS.findIndex((filter) => filter.id === active);
+    const activeIndex = filters.findIndex((filter) => filter.id === active);
+    const { isRtl, t } = useI18n();
 
     useLayoutEffect(() => {
         const track = trackRef.current;
@@ -476,10 +500,14 @@ function FilterTabs({
     }, [activeIndex]);
 
     const onKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
-        const last = FILTERS.length - 1;
+        const last = filters.length - 1;
+        const forward = activeIndex === last ? 0 : activeIndex + 1;
+        const back = activeIndex === 0 ? last : activeIndex - 1;
+        // The arrows follow the reading direction: in Arabic the next tab
+        // sits to the left.
         const moves: Record<string, number> = {
-            ArrowRight: activeIndex === last ? 0 : activeIndex + 1,
-            ArrowLeft: activeIndex === 0 ? last : activeIndex - 1,
+            ArrowRight: isRtl ? back : forward,
+            ArrowLeft: isRtl ? forward : back,
             Home: 0,
             End: last,
         };
@@ -491,19 +519,19 @@ function FilterTabs({
 
         event.preventDefault();
         tabRefs.current[next]?.focus();
-        onSelect(FILTERS[next].id);
+        onSelect(filters[next].id);
     };
 
     return (
         <div className={cn('min-w-0', className)}>
-            <div className="glass-rim flex max-w-full [scrollbar-width:none] overflow-x-auto rounded-[20px] p-1 glass has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-4 has-[:focus-visible]:outline-champagne/70 sm:inline-flex [&::-webkit-scrollbar]:hidden">
+            <div className="glass-rim flex max-w-full [scrollbar-width:none] overflow-x-auto rounded-[20px] p-1 glass has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-4 has-[:focus-visible]:outline-mint/70 sm:inline-flex [&::-webkit-scrollbar]:hidden">
                 <div
                     ref={trackRef}
                     role="tablist"
-                    aria-label="Filter looks"
+                    aria-label={t('lookbook.filterLabel')}
                     className="relative flex flex-auto shrink-0 sm:flex-none"
                 >
-                    {FILTERS.map((filter, index) => {
+                    {filters.map((filter, index) => {
                         const selected = filter.id === active;
 
                         return (
@@ -534,9 +562,9 @@ function FilterTabs({
                     <div
                         ref={indicatorRef}
                         aria-hidden
-                        className="pointer-events-none absolute inset-0 flex bg-champagne shadow-[inset_0_1px_0_oklch(1_0_0/0.55)] transition-[clip-path] duration-500 ease-glass [clip-path:inset(0_100%_0_0_round_14px)]"
+                        className="pointer-events-none absolute inset-0 flex bg-mint shadow-[inset_0_1px_0_oklch(1_0_0/0.55)] transition-[clip-path] duration-500 ease-glass [clip-path:inset(0_100%_0_0_round_14px)]"
                     >
-                        {FILTERS.map((filter) => (
+                        {filters.map((filter) => (
                             <span
                                 key={filter.id}
                                 className="grid h-10 flex-auto place-items-center px-2.5 text-[13px] font-medium whitespace-nowrap text-ink sm:flex-none sm:px-5 sm:text-sm"
@@ -551,11 +579,21 @@ function FilterTabs({
     );
 }
 
-/** Editorial text block at the head of the grid: this week's trend. */
-function TrendNote({ filter, leaving }: { filter: Filter; leaving: boolean }) {
-    const note = NOTES[filter];
+/**
+ * Editorial text block at the head of the grid: this week's trend. A note
+ * without a figure (or without a unit) closes up around what it has.
+ */
+function TrendNote({
+    note,
+    leaving,
+}: {
+    note: Note | undefined;
+    leaving: boolean;
+}) {
     const [ref, inView] = useInView();
     const shown = inView && !leaving;
+    const figure = note?.figure || null;
+    const unit = figure ? note?.unit || null : null;
 
     return (
         <div
@@ -568,26 +606,82 @@ function TrendNote({ filter, leaving }: { filter: Filter; leaving: boolean }) {
             )}
         >
             <p className="col-span-2 text-kicker font-medium text-mist uppercase">
-                {note.kicker}
+                {note?.kicker}
             </p>
-            <p className="row-span-2 mt-5 font-display text-[3.25rem] leading-[0.9] font-medium tracking-[-0.03em] text-bone sm:mt-7 sm:text-[4.25rem]">
-                {note.figure}
-            </p>
-            <p className="mt-5 font-display text-xl leading-tight text-champagne italic sm:mt-2 sm:text-2xl">
-                {note.unit}
-            </p>
-            <p className="mt-2 max-w-[30ch] text-[15px] leading-relaxed text-pretty text-mist sm:mt-5">
-                {note.line}
-            </p>
+            {figure ? (
+                <p className="row-span-2 mt-5 font-display text-[3.25rem] leading-[0.9] font-medium tracking-[-0.03em] text-bone sm:mt-7 sm:text-[4.25rem]">
+                    <Figure value={figure} />
+                </p>
+            ) : null}
+            {unit ? (
+                <p className="mt-5 font-display text-xl leading-tight text-mint italic sm:mt-2 sm:text-2xl rtl:leading-[1.5]">
+                    {unit}
+                </p>
+            ) : null}
+            {note?.line ? (
+                <p
+                    className={cn(
+                        'max-w-[30ch] text-[15px] leading-relaxed text-balance text-mist sm:mt-5',
+                        unit ? 'mt-2' : 'mt-5',
+                        !figure && 'col-span-2',
+                    )}
+                >
+                    {keepHyphenated(note.line)}
+                </p>
+            ) : null}
         </div>
     );
 }
 
 /**
- * The empty frame at the end of a short edit: look number thirteen,
+ * A message's text with its {placeholders} filled by values that stay
+ * separate text nodes, as they were when the line was plain JSX: Chromium
+ * shapes each node on its own, so the English line keeps its exact glyph
+ * positions. Takes the message with its placeholders left in, e.g.
+ * `t('lookbook.lookCity', { number: '{number}', city: '{city}' })`.
+ */
+function fill(message: string, values: Record<string, string>): string[] {
+    return message
+        .split(/\{(\w+)\}/)
+        .map((part, index) => (index % 2 ? (values[part] ?? '') : part))
+        .filter(Boolean);
+}
+
+/**
+ * A figure without letters ("38%", "+33%", "54") is isolated left to right,
+ * so Arabic text doesn't move its sign; a word ("Sat", "السبت") is left to
+ * the paragraph's own direction.
+ */
+function Figure({ value }: { value: string }) {
+    return /\p{L}/u.test(value) ? (
+        value
+    ) : (
+        <span className="bidi-ltr">{value}</span>
+    );
+}
+
+/** Balanced wrapping would split "try-ons" at its hyphen: keep such words whole. */
+function keepHyphenated(text: string) {
+    return text.split(/(\S+-\S+)/).map((part, index) =>
+        index % 2 ? (
+            <span key={index} className="whitespace-nowrap">
+                {part}
+            </span>
+        ) : (
+            part
+        ),
+    );
+}
+
+/**
+ * The empty frame at the end of a short edit: the next look number,
  * reserved for the retailer reading this, with viewfinder brackets.
  */
-function OpenSlot({ leaving }: { leaving: boolean }) {
+function OpenSlot({ number, leaving }: { number: number; leaving: boolean }) {
+    const order = useOrderDialog();
+    const title = useContent('sections.lookbook.slot_title');
+    const link = useContent('sections.lookbook.slot_link');
+    const { t } = useI18n();
     const [ref, inView] = useInView();
     const shown = inView && !leaving;
 
@@ -612,29 +706,26 @@ function OpenSlot({ leaving }: { leaving: boolean }) {
                 <span
                     key={corner}
                     aria-hidden
-                    className={cn(
-                        'absolute size-5 border-champagne/60',
-                        corner,
-                    )}
+                    className={cn('absolute size-5 border-mint/60', corner)}
                 />
             ))}
             <p className="text-kicker font-medium text-mist uppercase">
-                Look {String(LOOKS.length + 1).padStart(2, '0')} · Your store
+                {fill(t('lookbook.slotKicker', { number: '{number}' }), {
+                    number: String(number).padStart(2, '0'),
+                })}
             </p>
             <div>
-                <p className="font-display text-[1.625rem] leading-[1.15] font-medium text-balance text-bone">
-                    Your pieces, on{' '}
-                    <em className="font-normal text-champagne">your</em>{' '}
-                    shoppers.
+                <p className="font-display text-[1.625rem] leading-[1.15] font-medium text-balance text-bone rtl:leading-[1.45]">
+                    <Accent text={title} className="font-normal text-mint" />
                 </p>
                 <a
-                    href="#demo"
-                    className="group/link mt-4 inline-flex items-center gap-2 rounded-[8px] text-sm font-medium text-champagne transition-colors duration-300 hover:text-bone focus-visible:ring-2 focus-visible:ring-champagne/70 focus-visible:ring-offset-4 focus-visible:ring-offset-ink focus-visible:outline-none"
+                    {...order.link({ source: 'lookbook' })}
+                    className="group/link mt-4 inline-flex items-center gap-2 rounded-[8px] text-sm font-medium text-mint transition-colors duration-300 hover:text-bone focus-visible:ring-2 focus-visible:ring-mint/70 focus-visible:ring-offset-4 focus-visible:ring-offset-ink focus-visible:outline-none"
                 >
-                    Book a demo
+                    {link}
                     <ArrowRight
                         aria-hidden
-                        className="size-4 transition-transform duration-[380ms] ease-glass group-hover/link:translate-x-1"
+                        className="size-4 transition-transform duration-[380ms] ease-glass group-hover/link:translate-x-1 rtl:-scale-x-100 rtl:group-hover/link:-translate-x-1"
                     />
                 </a>
             </div>
@@ -644,12 +735,14 @@ function OpenSlot({ leaving }: { leaving: boolean }) {
 
 // The reveal is driven by one custom property on the card (--r: 0 or 1);
 // the pane and its counter-shifted photo copy both transition `transform`,
-// so the grayscale copy stays pinned to the photo while the glass slides.
+// so the before photo stays pinned to the card while the glass slides.
+// The pane sits on the reading side and slides in from it: --flip is -1 on
+// the Arabic page, where it enters from the right.
 const paneStyle: CSSProperties = {
-    transform: 'translateX(calc((var(--r) - 1) * 100%))',
+    transform: 'translateX(calc((var(--r) - 1) * 100% * var(--flip, 1)))',
 };
 const paneInnerStyle: CSSProperties = {
-    transform: 'translateX(calc((1 - var(--r)) * 50%))',
+    transform: 'translateX(calc((1 - var(--r)) * 50% * var(--flip, 1)))',
 };
 const afterChipStyle: CSSProperties = {
     opacity: 'var(--r)',
@@ -671,11 +764,12 @@ function LookCard({
 }) {
     const [pressed, setPressed] = useState(false);
     const [ref, inView] = useInView();
+    const { t } = useI18n();
     const shown = inView && !leaving;
+    const seconds = look.seconds.toFixed(1);
     const sizes =
         '(min-width: 80rem) 300px, (min-width: 64rem) 30vw, (min-width: 40rem) 45vw, 92vw';
     const photo = {
-        id: look.id,
         widths: [360, 560, 760, 960],
         sizes,
         style: {
@@ -690,7 +784,7 @@ function LookCard({
             data-look-order={order}
             data-revealed={pressed || demo}
             className={cn(
-                'group/look relative overflow-hidden rounded-[24px] bg-ink-raised transition-[opacity,translate,scale] ease-glass [--r:0] hover:[--r:1] has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-4 has-[:focus-visible]:outline-champagne/70 has-[:focus-visible]:[--r:1] data-[revealed=true]:[--r:1]',
+                'group/look relative overflow-hidden rounded-[24px] bg-ink-raised transition-[opacity,translate,scale] ease-glass [--r:0] hover:[--r:1] has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-4 has-[:focus-visible]:outline-mint/70 has-[:focus-visible]:[--r:1] data-[revealed=true]:[--r:1] rtl:[--flip:-1]',
                 shown
                     ? 'translate-y-0 scale-100 opacity-100 duration-700'
                     : 'translate-y-4 scale-[0.98] opacity-0 duration-[260ms]',
@@ -699,71 +793,93 @@ function LookCard({
         >
             <div className="relative" style={{ aspectRatio: look.aspect }}>
                 {/* After: the colour photo. */}
-                <Photo {...photo} alt={look.alt} />
+                <Photo {...photo} media={look.after} alt={look.alt} />
 
-                {/* Before: a glass pane carrying the camera's view. */}
+                {/*
+                 * Before: a glass pane carrying the camera's view, the
+                 * shopper's own photo, or without one a grayscale scan of
+                 * the result.
+                 */}
                 <div
                     aria-hidden
-                    className="absolute inset-y-0 left-0 w-1/2 overflow-hidden shadow-[18px_0_32px_-18px_oklch(0_0_0/0.7)] transition-transform duration-[750ms] ease-glass"
+                    className="absolute inset-y-0 start-0 w-1/2 overflow-hidden shadow-[18px_0_32px_-18px_oklch(0_0_0/0.7)] transition-transform duration-[750ms] ease-glass rtl:shadow-[-18px_0_32px_-18px_oklch(0_0_0/0.7)]"
                     style={paneStyle}
                 >
                     <div
-                        className="absolute inset-y-0 left-0 w-[200%] transition-transform duration-[750ms] ease-glass"
+                        className="absolute inset-y-0 start-0 w-[200%] transition-transform duration-[750ms] ease-glass"
                         style={paneInnerStyle}
                     >
-                        <Photo
-                            {...photo}
-                            alt=""
-                            className={cn(
-                                photo.className,
-                                'brightness-90 contrast-125 grayscale',
-                            )}
-                        />
-                        <div className="absolute inset-0 bg-[linear-gradient(165deg,var(--color-amethyst),var(--color-lagoon))] opacity-55 mix-blend-color" />
-                        <div className="absolute inset-0 bg-ink/15" />
+                        {look.before ? (
+                            <Photo {...photo} media={look.before} alt="" />
+                        ) : (
+                            <>
+                                <Photo
+                                    {...photo}
+                                    media={look.after}
+                                    alt=""
+                                    className={cn(
+                                        photo.className,
+                                        'brightness-90 contrast-125 grayscale',
+                                    )}
+                                />
+                                <div className="absolute inset-0 bg-[linear-gradient(165deg,var(--color-jade),var(--color-lagoon))] opacity-55 mix-blend-color" />
+                                <div className="absolute inset-0 bg-ink/15" />
+                            </>
+                        )}
                     </div>
                     {/* The scan frame sits between the chip and the caption. */}
                     <div className="absolute inset-x-0 top-11 bottom-[5.25rem]">
                         <ScanOverlay />
                     </div>
-                    <div className="absolute inset-0 bg-[linear-gradient(100deg,oklch(1_0_0/0.07),transparent_40%)] shadow-[inset_0_1px_0_oklch(1_0_0/0.3)]" />
-                    <div className="absolute inset-y-0 right-0 w-5 bg-[linear-gradient(to_left,oklch(1_0_0/0.28),transparent)]" />
-                    <div className="absolute inset-y-0 right-0 w-px bg-white/70" />
-                    <span className="absolute top-3 left-3 rounded-[10px] px-2.5 py-1 text-[10px] font-medium tracking-[0.2em] text-bone uppercase glass-strong">
-                        Before
+                    <div className="absolute inset-0 bg-[linear-gradient(100deg,oklch(1_0_0/0.07),transparent_40%)] shadow-[inset_0_1px_0_oklch(1_0_0/0.3)] rtl:bg-[linear-gradient(260deg,oklch(1_0_0/0.07),transparent_40%)]" />
+                    <div className="absolute inset-y-0 end-0 w-5 bg-[linear-gradient(to_left,oklch(1_0_0/0.28),transparent)] rtl:bg-[linear-gradient(to_right,oklch(1_0_0/0.28),transparent)]" />
+                    <div className="absolute inset-y-0 end-0 w-px bg-white/70" />
+                    <span className="absolute start-3 top-3 rounded-[10px] px-2.5 py-1 text-[10px] font-medium tracking-[0.2em] text-bone uppercase glass-strong rtl:text-xs">
+                        {t('lookbook.before')}
                     </span>
                 </div>
 
                 <span
                     aria-hidden
-                    className="absolute top-3 right-3 rounded-[10px] bg-champagne px-2.5 py-1 text-[10px] font-medium tracking-[0.2em] text-ink uppercase transition-opacity duration-500 ease-glass"
+                    className="absolute end-3 top-3 rounded-[10px] bg-mint px-2.5 py-1 text-[10px] font-medium tracking-[0.2em] text-ink uppercase transition-opacity duration-500 ease-glass rtl:text-xs"
                     style={afterChipStyle}
                 >
-                    After
+                    {t('lookbook.after')}
                 </span>
 
                 <div
                     aria-hidden
-                    className="pointer-events-none absolute inset-x-0 bottom-0 h-2/5 bg-[linear-gradient(to_top,oklch(0.145_0.018_285/0.55),transparent)]"
+                    className="pointer-events-none absolute inset-x-0 bottom-0 h-2/5 bg-[linear-gradient(to_top,oklch(0.145_0.018_200/0.55),transparent)]"
                 />
             </div>
 
             <figcaption className="pointer-events-none absolute inset-x-2.5 bottom-2.5 rounded-[16px] px-3.5 pt-2.5 pb-3 glass-strong">
-                <span className="flex items-center justify-between gap-3 text-[10px] leading-4 font-medium tracking-[0.2em] text-smoke uppercase">
+                <span className="flex items-center justify-between gap-3 text-[10px] leading-4 font-medium tracking-[0.2em] text-smoke uppercase rtl:text-xs rtl:leading-5">
                     <span className="truncate">
-                        Look {look.number} · {look.city}
+                        {fill(
+                            t('lookbook.lookCity', {
+                                number: '{number}',
+                                city: '{city}',
+                            }),
+                            { number: look.number, city: look.city },
+                        )}
                     </span>
-                    <span className="flex shrink-0 items-center gap-1.5 tracking-[0.06em] normal-case tabular-nums">
-                        <span
-                            aria-hidden
-                            className="size-1 rounded-full bg-lagoon"
-                        />
-                        <span className="sr-only">Rendered in </span>
-                        {look.seconds.toFixed(1)} s
+                    <span className="shrink-0 tracking-[0.06em] normal-case tabular-nums">
+                        <span className="sr-only">
+                            {t('lookbook.renderedIn', { seconds })}
+                        </span>
+                        <span aria-hidden>
+                            {fill(
+                                t('lookbook.seconds', { seconds: '{seconds}' }),
+                                {
+                                    seconds,
+                                },
+                            )}
+                        </span>
                     </span>
                 </span>
                 <span className="mt-1 block font-display text-[17px] leading-snug font-medium text-bone">
-                    {look.look}
+                    {look.title}
                 </span>
             </figcaption>
 
@@ -775,7 +891,11 @@ function LookCard({
             <button
                 type="button"
                 aria-pressed={pressed}
-                aria-label={`Before and after: look ${look.number}, ${look.look}, ${look.city}`}
+                aria-label={t('lookbook.compare', {
+                    number: look.number,
+                    title: look.title,
+                    city: look.city,
+                })}
                 onClick={() => setPressed((value) => !value)}
                 className="absolute inset-0 z-10 cursor-pointer rounded-[inherit] focus-visible:outline-none"
             />
@@ -789,7 +909,7 @@ function CompareGlyph() {
         <svg
             viewBox="0 0 24 18"
             aria-hidden
-            className="h-[18px] w-6 shrink-0"
+            className="h-[18px] w-6 shrink-0 rtl:-scale-x-100"
             fill="none"
         >
             <rect
@@ -802,7 +922,7 @@ function CompareGlyph() {
             />
             <path
                 d="M12 1h7.5A3.5 3.5 0 0 1 23 4.5v9a3.5 3.5 0 0 1-3.5 3.5H12z"
-                className="fill-champagne/80"
+                className="fill-mint/80"
             />
             <path
                 d="M4.5 1v16M8.5 1v16M1 6h11M1 12h11"

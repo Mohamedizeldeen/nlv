@@ -1,139 +1,169 @@
 import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { useId, useRef, useState } from 'react';
 import type { CSSProperties, KeyboardEvent, PointerEvent } from 'react';
+import { useI18n } from '@/hooks/use-i18n';
 import { cn } from '@/lib/utils';
-import { BRAND } from '../brand';
-import { IMAGES } from '../images';
-import type { ImageRef } from '../images';
+import type { LandingStory, MediaRef } from '@/types/landing';
+import { Accent } from '../accent';
+import { hasSection, useContent, useLanding } from '../landing-data';
 import { Photo } from '../photo';
 import { Container, cta, Glow, Reveal, SectionHeader } from '../primitives';
 
-// Placeholder content: replace before launch. -----------------------------
-// The people, stores and figures below are fictional.
-
-type Story = {
-    id: string;
-    name: string;
-    role: string;
-    store: string;
-    city: string;
-    /** Printed on the portrait like a lookbook caption. */
-    coords: string;
-    photo: ImageRef;
-    /** Focal zoom for the featured 4:5 crop (1 = none). */
-    zoom: number;
-    /** Face position and zoom for the 48px avatar crop. */
-    avatar: { focus: [number, number]; zoom: number };
-    /** The quote in three parts; `accent` is the phrase set in champagne. */
-    quote: { before: string; accent: string; after: string };
-    metric: { figure: string; label: string; note: string; short: string };
-};
-
-const STORIES: Story[] = [
-    {
-        id: 'noura',
-        name: 'Noura Al-Harbi',
-        role: 'Founder',
-        store: 'Rimal Abayas',
-        city: 'Riyadh',
-        coords: '24.71° N · 46.68° E',
-        photo: IMAGES.testimonials.noura,
-        zoom: 1.35,
-        avatar: { focus: [0.47, 0.4], zoom: 2.6 },
-        quote: {
-            before: 'Our customers used to order the same abaya in three sizes and send two back. Now they try it on first. Returns on abayas ',
-            accent: 'fell by a third',
-            after: ' in one season.',
-        },
-        metric: {
-            figure: '−33%',
-            label: 'Abaya returns',
-            note: 'in one season',
-            short: 'returns',
-        },
-    },
-    {
-        id: 'khalid',
-        name: 'Khalid Mansour',
-        role: 'Head of E-commerce',
-        store: 'Layan Optics',
-        city: 'Dubai',
-        coords: '25.20° N · 55.27° E',
-        photo: IMAGES.testimonials.khalid,
-        zoom: 1.1,
-        avatar: { focus: [0.45, 0.25], zoom: 3 },
-        quote: {
-            before: 'We put the kiosk next to the frame wall. People who would have tried three frames now ',
-            accent: 'try twenty',
-            after: ', and they leave with a photo to show their family.',
-        },
-        metric: {
-            figure: '×6',
-            label: 'Frames tried per visit',
-            note: 'at the frame wall',
-            short: 'frames tried',
-        },
-    },
-    {
-        id: 'maryam',
-        name: 'Maryam Al-Kuwari',
-        role: 'Store Manager',
-        store: 'Qasr Atelier',
-        city: 'Doha',
-        coords: '25.29° N · 51.53° E',
-        photo: IMAGES.testimonials.maryam,
-        zoom: 1,
-        avatar: { focus: [0.53, 0.33], zoom: 2.2 },
-        quote: {
-            before: 'It speaks Arabic properly, ',
-            accent: 'right to left',
-            after: ', not a translation bolted on. That alone won over our older clients.',
-        },
-        metric: {
-            figure: '71%',
-            label: 'Kiosk sessions in Arabic',
-            note: 'first quarter',
-            short: 'in Arabic',
-        },
-    },
-    {
-        id: 'faisal',
-        name: 'Faisal Al-Rashidi',
-        role: 'Owner',
-        store: 'Dune & Co.',
-        city: 'Muscat',
-        coords: '23.59° N · 58.38° E',
-        photo: IMAGES.testimonials.faisal,
-        zoom: 1.1,
-        avatar: { focus: [0.52, 0.36], zoom: 2.5 },
-        quote: {
-            before: 'Installation took an afternoon. By the weekend the kiosk was ',
-            accent: 'the busiest corner of the shop',
-            after: '.',
-        },
-        metric: {
-            figure: '+24%',
-            label: 'Conversion on tried items',
-            note: 'first month',
-            short: 'conversion',
-        },
-    },
-];
-
-// --------------------------------------------------------------------------
+// The stories (people, stores, quotes, figures and portraits) come from the
+// admin panel: `landing.stories`, published ones only, in their order.
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
-const plainQuote = ({ quote }: Story) =>
+const plainQuote = ({ quote }: LandingStory) =>
     `${quote.before}${quote.accent}${quote.after}`;
 
+/**
+ * A metric without letters ("+33%", "−45%", "×6") is isolated left to
+ * right, so Arabic text doesn't move its sign to the other end.
+ */
+function Figure({ value }: { value: string }) {
+    return /\p{L}/u.test(value) ? (
+        value
+    ) : (
+        <span className="bidi-ltr">{value}</span>
+    );
+}
+
+/**
+ * A message's text with its {placeholders} filled by values that stay
+ * separate text nodes, as they were when the line was plain JSX: Chromium
+ * shapes each node on its own, so the English line keeps its exact glyph
+ * positions. Takes the message with its placeholders left in, e.g.
+ * `t('testimonials.place', { store: '{store}', city: '{city}' })`.
+ */
+function fill(message: string, values: Record<string, string>): string[] {
+    return message
+        .split(/\{(\w+)\}/)
+        .map((part, index) => (index % 2 ? (values[part] ?? '') : part))
+        .filter(Boolean);
+}
+
+/** The featured portrait's frame, width / height. */
+const PORTRAIT_FRAME = 4 / 5;
+
+/**
+ * The list's small avatar reuses the portrait's focal point, zoomed in
+ * twice as far (as the admin's story preview shows it).
+ */
+const avatarZoom = (zoom: number) =>
+    Math.min(4, Math.round(zoom * 2 * 100) / 100);
+
+const clamp = (value: number, min: number, max: number) =>
+    Math.min(max, Math.max(min, value));
+
+/**
+ * The Unsplash CDN crops stock portraits around their focal point and zoom.
+ * An upload is cropped the same way in CSS: sized to cover the frame, scaled
+ * by `zoom` and shifted so the focal point sits mid-frame without showing
+ * past the photo's edges. Undefined for stock photos, and for uploads whose
+ * size is unknown (those fall back to object-position).
+ */
+function uploadCrop(
+    media: MediaRef,
+    frame: number,
+    focus: [number, number],
+    zoom: number,
+): CSSProperties | undefined {
+    if (media.kind !== 'upload' || !media.width || !media.height) {
+        return undefined;
+    }
+
+    const aspect = media.width / media.height;
+    const scale = Math.max(1, zoom);
+    const width = (aspect > frame ? aspect / frame : 1) * scale;
+    const height = (aspect > frame ? 1 : frame / aspect) * scale;
+
+    return {
+        width: `${width * 100}%`,
+        height: `${height * 100}%`,
+        left: `${clamp(0.5 - focus[0] * width, 1 - width, 0) * 100}%`,
+        top: `${clamp(0.5 - focus[1] * height, 1 - height, 0) * 100}%`,
+        maxWidth: 'none',
+    };
+}
+
+/** The 48px portrait in the story list. */
+function Avatar({
+    story,
+    selected,
+}: {
+    story: LandingStory;
+    selected: boolean;
+}) {
+    const zoom = avatarZoom(story.zoom);
+    const tone = cn(
+        'rounded-[14px] ring-1 ring-white/15 transition-[filter,opacity] duration-500 ease-glass',
+        !selected &&
+            'opacity-75 grayscale group-hover/tab:opacity-100 group-hover/tab:grayscale-0',
+    );
+    const crop = uploadCrop(story.portrait, 1, story.focus, zoom);
+
+    if (crop) {
+        // An upload is cropped in CSS, inside a frame of its own.
+        return (
+            <span className={cn('relative size-12 overflow-hidden', tone)}>
+                <Photo
+                    media={story.portrait}
+                    alt=""
+                    className="absolute"
+                    style={crop}
+                />
+            </span>
+        );
+    }
+
+    return (
+        <Photo
+            media={story.portrait}
+            alt=""
+            ratio={1}
+            focus={story.focus}
+            zoom={zoom}
+            widths={[96, 160]}
+            sizes="48px"
+            className={cn('size-12', tone)}
+        />
+    );
+}
+
 export default function Testimonials() {
-    const [active, setActive] = useState(0);
+    const landing = useLanding();
+
+    // Nothing published yet: no section (and no empty index).
+    if (!hasSection(landing, 'stories')) {
+        return null;
+    }
+
+    return <Stories stories={landing.stories} />;
+}
+
+function Stories({ stories }: { stories: LandingStory[] }) {
+    const label = useContent('sections.stories.label');
+    const title = useContent('sections.stories.title');
+    const lede = useContent('sections.stories.lede');
+    const footnote = useContent('sections.stories.footnote');
+    const { isRtl, t } = useI18n();
+    const place = t('testimonials.place', {
+        store: '{store}',
+        city: '{city}',
+    });
+    const placeShort = t('testimonials.placeShort', {
+        store: '{store}',
+        city: '{city}',
+    });
+    const [chosen, setActive] = useState(0);
     const tabs = useRef<(HTMLButtonElement | null)[]>([]);
     const swipe = useRef<{ x: number; y: number } | null>(null);
     const uid = useId();
     const panelId = `${uid}-panel`;
-    const count = STORIES.length;
+    const count = stories.length;
+    // The list can shrink under a kept selection (a story unpublished).
+    const active = Math.min(chosen, count - 1);
 
     const select = (index: number, focusTab = false) => {
         const next = (index + count) % count;
@@ -148,10 +178,12 @@ export default function Testimonials() {
         event: KeyboardEvent<HTMLButtonElement>,
         index: number,
     ) => {
+        // Left and right follow the reading direction: in Arabic the next
+        // story is to the left.
         const target: Record<string, number> = {
-            ArrowRight: index + 1,
+            ArrowRight: isRtl ? index - 1 : index + 1,
             ArrowDown: index + 1,
-            ArrowLeft: index - 1,
+            ArrowLeft: isRtl ? index + 1 : index - 1,
             ArrowUp: index - 1,
             Home: 0,
             End: count - 1,
@@ -163,7 +195,8 @@ export default function Testimonials() {
         }
     };
 
-    // Swipe the portrait to move between stories on touch screens.
+    // Swipe the portrait to move between stories on touch screens: towards
+    // the reading start for the next one (left in English, right in Arabic).
     const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
         swipe.current = { x: event.clientX, y: event.clientY };
     };
@@ -180,34 +213,29 @@ export default function Testimonials() {
         const dy = event.clientY - start.y;
 
         if (Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(dy) * 1.5) {
-            select(active + (dx < 0 ? 1 : -1));
+            select(active + (dx < 0 !== isRtl ? 1 : -1));
         }
     };
 
-    const story = STORIES[active];
+    const story = stories[active];
 
     return (
         <section id="stories" className="relative isolate py-24 md:py-36">
             <Glow
-                color="amethyst"
-                className="top-[38%] -right-56 size-[34rem] opacity-35"
+                color="jade"
+                className="-end-56 top-[38%] size-[34rem] opacity-35"
             />
             <Glow
                 color="lagoon"
-                className="bottom-[6%] -left-40 size-[26rem] opacity-25"
+                className="-start-40 bottom-[6%] size-[26rem] opacity-25"
             />
 
             <Container>
                 <SectionHeader
                     index="05"
-                    label="Stories"
-                    labelAr="قصص عملائنا"
-                    title={
-                        <>
-                            Store owners, <em>in their own words.</em>
-                        </>
-                    }
-                    lede={`An abaya house in Riyadh, an optician in Dubai, an atelier in Doha and an outfitter in Muscat, on their first season with ${BRAND.name}.`}
+                    label={label}
+                    title={<Accent text={title} />}
+                    lede={lede}
                 />
 
                 <div className="mt-14 grid md:mt-24 lg:grid-cols-12 lg:gap-x-8">
@@ -227,16 +255,22 @@ export default function Testimonials() {
                                 }}
                                 className="relative aspect-[4/5] touch-pan-y overflow-hidden rounded-[28px] bg-ink-raised md:w-[72%] lg:w-[68%]"
                             >
-                                {STORIES.map((item, index) => (
+                                {stories.map((item, index) => (
                                     <Photo
                                         key={item.id}
-                                        id={item.photo.id}
-                                        alt={item.photo.alt}
+                                        media={item.portrait}
+                                        alt={item.portraitAlt}
                                         aria-hidden={index !== active}
                                         draggable={false}
                                         ratio={1.25}
-                                        focus={item.photo.focus}
+                                        focus={item.focus}
                                         zoom={item.zoom}
+                                        style={uploadCrop(
+                                            item.portrait,
+                                            PORTRAIT_FRAME,
+                                            item.focus,
+                                            item.zoom,
+                                        )}
                                         widths={[480, 800, 1200]}
                                         sizes="(min-width: 1320px) 480px, (min-width: 1024px) 37vw, (min-width: 768px) 72vw, 100vw"
                                         className={cn(
@@ -252,8 +286,8 @@ export default function Testimonials() {
                                     className="absolute inset-x-0 bottom-0 h-3/5 bg-linear-to-t from-ink/85 via-ink/35 to-transparent"
                                 />
 
-                                <div className="absolute top-4 left-4 grid rounded-[14px] px-3.5 py-2.5 glass-strong md:top-5 md:left-5">
-                                    {STORIES.map((item, index) => (
+                                <div className="absolute start-4 top-4 grid rounded-[14px] px-3.5 py-2.5 glass-strong md:start-5 md:top-5">
+                                    {stories.map((item, index) => (
                                         <p
                                             key={item.id}
                                             aria-hidden={index !== active}
@@ -264,27 +298,29 @@ export default function Testimonials() {
                                                     : 'opacity-0',
                                             )}
                                         >
-                                            <span className="text-[10px] leading-none font-medium tracking-[0.28em] text-bone uppercase">
+                                            <span className="text-[10px] leading-none font-medium tracking-[0.28em] text-bone uppercase rtl:text-xs rtl:leading-tight">
                                                 {item.city}
                                             </span>
-                                            <span className="text-[11px] leading-none text-smoke tabular-nums">
-                                                {item.coords}
-                                            </span>
+                                            {item.coordinates ? (
+                                                <span className="text-[11px] leading-none text-smoke tabular-nums rtl:leading-tight">
+                                                    {item.coordinates}
+                                                </span>
+                                            ) : null}
                                         </p>
                                     ))}
                                 </div>
                             </div>
 
-                            <div className="glass-rim relative mx-3 -mt-16 rounded-[28px] px-6 pt-12 pb-6 glass-strong sm:mx-6 sm:px-8 sm:pb-8 md:mx-0 md:-mt-44 md:ml-[22%] lg:-mt-48 lg:ml-[20%] lg:px-11 lg:pt-14 lg:pb-9 xl:-mr-16">
+                            <div className="glass-rim relative mx-3 -mt-16 rounded-[28px] px-6 pt-12 pb-6 glass-strong sm:mx-6 sm:px-8 sm:pb-8 md:mx-0 md:ms-[22%] md:-mt-44 lg:ms-[20%] lg:-mt-48 lg:px-11 lg:pt-14 lg:pb-9 xl:-me-16">
                                 <span
                                     aria-hidden
-                                    className="pointer-events-none absolute -top-7 left-5 font-display text-[6.5rem] leading-none text-champagne select-none sm:left-7 lg:-top-9 lg:left-10 lg:text-[8rem]"
+                                    className="pointer-events-none absolute start-5 -top-7 font-display text-[6.5rem] leading-none text-mint select-none sm:start-7 lg:start-10 lg:-top-9 lg:text-[8rem] rtl:-top-12 rtl:text-[5rem] lg:rtl:-top-[3.75rem] lg:rtl:text-[6rem]"
                                 >
-                                    “
+                                    {t('testimonials.quoteMark')}
                                 </span>
 
                                 <div className="grid">
-                                    {STORIES.map((item, index) => (
+                                    {stories.map((item, index) => (
                                         <figure
                                             key={item.id}
                                             inert={index !== active}
@@ -302,22 +338,21 @@ export default function Testimonials() {
                                                     'font-display font-normal text-pretty text-bone italic',
                                                     // Short quotes are set a size up so every one fills the same mirror.
                                                     plainQuote(item).length >
-                                                        100
-                                                        ? 'text-display-md max-sm:text-[1.625rem]'
-                                                        : 'text-[clamp(1.875rem,1.1rem+2.2vw,2.875rem)] leading-[1.1] tracking-[-0.015em]',
+                                                        140
+                                                        ? 'text-display-md max-sm:text-[1.625rem] rtl:leading-[1.5]'
+                                                        : 'text-[clamp(1.875rem,1.1rem+2.2vw,2.875rem)] leading-[1.1] tracking-[-0.015em] rtl:leading-[1.45]',
                                                 )}
                                             >
                                                 <p>
-                                                    {item.quote.before}
-                                                    <em className="text-champagne not-italic">
-                                                        {item.quote.accent}
-                                                    </em>
-                                                    {item.quote.after}
+                                                    <Accent
+                                                        text={item.quote}
+                                                        className="text-mint not-italic"
+                                                    />
                                                 </p>
                                             </blockquote>
 
                                             <figcaption className="mt-auto flex flex-col items-start gap-5 pt-8 xl:flex-row xl:items-end xl:justify-between">
-                                                <span className="flex flex-col gap-1 border-l border-champagne/40 pl-4">
+                                                <span className="flex flex-col gap-1 border-s border-mint/40 ps-4">
                                                     <span className="text-[17px] leading-snug font-medium text-bone">
                                                         {item.name}
                                                     </span>
@@ -325,21 +360,33 @@ export default function Testimonials() {
                                                         {item.role}
                                                     </span>
                                                     <span className="text-sm leading-snug text-smoke">
-                                                        {item.store},{' '}
-                                                        {item.city}
+                                                        {fill(place, {
+                                                            store: item.store,
+                                                            city: item.city,
+                                                        })}
                                                     </span>
                                                 </span>
-                                                <span className="inline-flex items-center gap-3 rounded-[14px] py-2.5 pr-4 pl-3.5 glass-thin">
-                                                    <span className="font-display text-[1.625rem] leading-none font-medium text-champagne tabular-nums">
-                                                        {item.metric.figure}
+                                                <span className="inline-flex items-center gap-3 rounded-[14px] py-2.5 ps-3.5 pe-4 glass-thin">
+                                                    <span className="font-display text-[1.625rem] leading-none font-medium text-mint tabular-nums">
+                                                        <Figure
+                                                            value={
+                                                                item.metric
+                                                                    .figure
+                                                            }
+                                                        />
                                                     </span>
                                                     <span className="flex flex-col gap-0.5">
                                                         <span className="text-[13px] leading-tight text-bone">
                                                             {item.metric.label}
                                                         </span>
-                                                        <span className="text-xs leading-tight text-smoke">
-                                                            {item.metric.note}
-                                                        </span>
+                                                        {item.metric.note ? (
+                                                            <span className="text-xs leading-tight text-smoke">
+                                                                {
+                                                                    item.metric
+                                                                        .note
+                                                                }
+                                                            </span>
+                                                        ) : null}
                                                     </span>
                                                 </span>
                                             </figcaption>
@@ -358,7 +405,11 @@ export default function Testimonials() {
                         <div className="flex items-center justify-between border-t border-white/10 pt-5">
                             <p className="font-display text-[1.75rem] leading-none font-medium text-bone tabular-nums">
                                 <span className="sr-only" aria-live="polite">
-                                    Story {active + 1} of {count}: {story.name}
+                                    {t('testimonials.position', {
+                                        number: active + 1,
+                                        count,
+                                        name: story.name,
+                                    })}
                                 </span>
                                 <span aria-hidden>
                                     {pad(active + 1)}
@@ -368,40 +419,51 @@ export default function Testimonials() {
                                     </span>
                                 </span>
                             </p>
-                            <div className="flex gap-2">
-                                <button
-                                    type="button"
-                                    aria-label="Previous story"
-                                    aria-controls={panelId}
-                                    onClick={() => select(active - 1)}
-                                    className={cn(
-                                        cta({ variant: 'glass', size: 'sm' }),
-                                        'size-11 px-0',
-                                    )}
-                                >
-                                    <ArrowLeft aria-hidden className="size-4" />
-                                </button>
-                                <button
-                                    type="button"
-                                    aria-label="Next story"
-                                    aria-controls={panelId}
-                                    onClick={() => select(active + 1)}
-                                    className={cn(
-                                        cta({ variant: 'glass', size: 'sm' }),
-                                        'size-11 px-0',
-                                    )}
-                                >
-                                    <ArrowRight
-                                        aria-hidden
-                                        className="size-4"
-                                    />
-                                </button>
-                            </div>
+                            {count > 1 ? (
+                                <div className="flex gap-2">
+                                    <button
+                                        type="button"
+                                        aria-label={t('testimonials.previous')}
+                                        aria-controls={panelId}
+                                        onClick={() => select(active - 1)}
+                                        className={cn(
+                                            cta({
+                                                variant: 'glass',
+                                                size: 'sm',
+                                            }),
+                                            'size-11 px-0',
+                                        )}
+                                    >
+                                        <ArrowLeft
+                                            aria-hidden
+                                            className="size-4 rtl:-scale-x-100"
+                                        />
+                                    </button>
+                                    <button
+                                        type="button"
+                                        aria-label={t('testimonials.next')}
+                                        aria-controls={panelId}
+                                        onClick={() => select(active + 1)}
+                                        className={cn(
+                                            cta({
+                                                variant: 'glass',
+                                                size: 'sm',
+                                            }),
+                                            'size-11 px-0',
+                                        )}
+                                    >
+                                        <ArrowRight
+                                            aria-hidden
+                                            className="size-4 rtl:-scale-x-100"
+                                        />
+                                    </button>
+                                </div>
+                            ) : null}
                         </div>
 
                         <div
                             role="tablist"
-                            aria-label="Retailer stories"
+                            aria-label={t('testimonials.listLabel')}
                             style={
                                 {
                                     '--i': active,
@@ -413,9 +475,9 @@ export default function Testimonials() {
                             {/* One glass pane glides to the selected row, like the mirror moving. */}
                             <span
                                 aria-hidden
-                                className="glass-rim pointer-events-none absolute inset-x-0 top-0 h-[calc(100%/var(--n))] translate-y-[calc(var(--i)*100%)] rounded-[22px] ring-1 glass-strong ring-champagne/45 transition-transform duration-[560ms] ease-glass"
+                                className="glass-rim pointer-events-none absolute inset-x-0 top-0 h-[calc(100%/var(--n))] translate-y-[calc(var(--i)*100%)] rounded-[22px] ring-1 glass-strong ring-mint/45 transition-transform duration-[560ms] ease-glass"
                             />
-                            {STORIES.map((item, index) => {
+                            {stories.map((item, index) => {
                                 const selected = index === active;
 
                                 return (
@@ -427,7 +489,13 @@ export default function Testimonials() {
                                         id={`${uid}-tab-${index}`}
                                         type="button"
                                         role="tab"
-                                        aria-label={`${item.name}, ${item.store}, ${item.city}: ${item.metric.label} ${item.metric.figure}`}
+                                        aria-label={t('testimonials.tabLabel', {
+                                            name: item.name,
+                                            store: item.store,
+                                            city: item.city,
+                                            label: item.metric.label,
+                                            figure: item.metric.figure,
+                                        })}
                                         aria-selected={selected}
                                         aria-controls={panelId}
                                         tabIndex={selected ? 0 : -1}
@@ -436,24 +504,14 @@ export default function Testimonials() {
                                             onTabKeyDown(event, index)
                                         }
                                         className={cn(
-                                            'group/tab relative grid cursor-pointer grid-cols-[auto_1fr_auto] items-center gap-x-4 rounded-[22px] px-4 py-4 text-left transition-colors duration-[380ms] ease-glass focus-visible:ring-2 focus-visible:ring-champagne/80 focus-visible:ring-offset-2 focus-visible:ring-offset-ink focus-visible:outline-none md:px-5 md:py-5 xl:py-6',
+                                            'group/tab relative grid cursor-pointer grid-cols-[auto_1fr_auto] items-center gap-x-4 rounded-[22px] px-4 py-4 text-start transition-colors duration-[380ms] ease-glass focus-visible:ring-2 focus-visible:ring-mint/80 focus-visible:ring-offset-2 focus-visible:ring-offset-ink focus-visible:outline-none md:px-5 md:py-5 xl:py-6',
                                             !selected &&
                                                 'hover:bg-white/[0.04]',
                                         )}
                                     >
-                                        <Photo
-                                            id={item.photo.id}
-                                            alt=""
-                                            ratio={1}
-                                            focus={item.avatar.focus}
-                                            zoom={item.avatar.zoom}
-                                            widths={[96, 160]}
-                                            sizes="48px"
-                                            className={cn(
-                                                'size-12 rounded-[14px] ring-1 ring-white/15 transition-[filter,opacity] duration-500 ease-glass',
-                                                !selected &&
-                                                    'opacity-75 grayscale group-hover/tab:opacity-100 group-hover/tab:grayscale-0',
-                                            )}
+                                        <Avatar
+                                            story={item}
+                                            selected={selected}
                                         />
                                         <span className="flex min-w-0 flex-col gap-0.5">
                                             <span
@@ -467,7 +525,10 @@ export default function Testimonials() {
                                                 {item.name}
                                             </span>
                                             <span className="truncate text-[13px] text-smoke">
-                                                {item.store} · {item.city}
+                                                {fill(placeShort, {
+                                                    store: item.store,
+                                                    city: item.city,
+                                                })}
                                             </span>
                                         </span>
                                         <span className="flex flex-col items-end gap-1.5">
@@ -475,13 +536,15 @@ export default function Testimonials() {
                                                 className={cn(
                                                     'font-display text-2xl leading-none font-medium tabular-nums transition-colors duration-[380ms] ease-glass',
                                                     selected
-                                                        ? 'text-champagne'
+                                                        ? 'text-mint'
                                                         : 'text-bone/75',
                                                 )}
                                             >
-                                                {item.metric.figure}
+                                                <Figure
+                                                    value={item.metric.figure}
+                                                />
                                             </span>
-                                            <span className="text-[10px] leading-none tracking-[0.18em] text-smoke uppercase">
+                                            <span className="text-[10px] leading-none tracking-[0.18em] text-smoke uppercase rtl:text-[11px] rtl:leading-tight">
                                                 {item.metric.short}
                                             </span>
                                         </span>
@@ -493,10 +556,11 @@ export default function Testimonials() {
                             })}
                         </div>
 
-                        <p className="mt-6 text-[13px] leading-relaxed text-pretty text-smoke">
-                            Figures reported by each retailer for their first
-                            season on {BRAND.name}.
-                        </p>
+                        {footnote ? (
+                            <p className="mt-6 text-[13px] leading-relaxed text-pretty text-smoke">
+                                {footnote}
+                            </p>
+                        ) : null}
                     </Reveal>
                 </div>
             </Container>
