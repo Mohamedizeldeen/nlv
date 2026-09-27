@@ -1,165 +1,225 @@
 import { Form } from '@inertiajs/react';
 import { REGEXP_ONLY_DIGITS } from 'input-otp';
-import { Check, Copy, ScanLine } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import AlertError from '@/components/alert-error';
-import InputError from '@/components/input-error';
-import { Button } from '@/components/ui/button';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
+import { Check, Copy } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { Ref } from 'react';
+import { Button, button } from '@/components/admin/button';
+import { Modal } from '@/components/admin/dialog';
+import { FieldError } from '@/components/admin/field';
 import {
     InputOTP,
     InputOTPGroup,
     InputOTPSlot,
 } from '@/components/ui/input-otp';
 import { Spinner } from '@/components/ui/spinner';
-import { useAppearance } from '@/hooks/use-appearance';
 import { useClipboard } from '@/hooks/use-clipboard';
 import { OTP_MAX_LENGTH } from '@/hooks/use-two-factor-auth';
+import { cn } from '@/lib/utils';
 import { confirm } from '@/routes/two-factor';
 
-function GridScanIcon() {
+type OtpInputProps = {
+    name: string;
+    /** Accessible name of the (visually hidden) input. */
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+    disabled?: boolean;
+    invalid?: boolean;
+    autoFocus?: boolean;
+    pattern?: string;
+    /** The hidden input, e.g. to focus it again after a wrong code. */
+    inputRef?: Ref<HTMLInputElement>;
+};
+
+/**
+ * Six glass boxes for a 6-digit code (one hidden input underneath, so
+ * paste and the phone's one-time-code autofill work). Also used by the
+ * two-factor challenge at sign-in.
+ */
+export function OtpInput({
+    name,
+    label,
+    value,
+    onChange,
+    disabled = false,
+    invalid = false,
+    autoFocus = false,
+    pattern = REGEXP_ONLY_DIGITS,
+    inputRef,
+}: OtpInputProps) {
+    const [focused, setFocused] = useState(false);
+    const current = Math.min(value.length, OTP_MAX_LENGTH - 1);
+
     return (
-        <div className="mb-3 rounded-full border border-border bg-card p-0.5 shadow-sm">
-            <div className="relative overflow-hidden rounded-full border border-border bg-muted p-2.5">
-                <div className="absolute inset-0 grid grid-cols-5 opacity-50">
-                    {Array.from({ length: 5 }, (_, i) => (
-                        <div
-                            key={`col-${i + 1}`}
-                            className="border-r border-border last:border-r-0"
-                        />
-                    ))}
-                </div>
-                <div className="absolute inset-0 grid grid-rows-5 opacity-50">
-                    {Array.from({ length: 5 }, (_, i) => (
-                        <div
-                            key={`row-${i + 1}`}
-                            className="border-b border-border last:border-b-0"
-                        />
-                    ))}
-                </div>
-                <ScanLine className="relative z-20 size-6 text-foreground" />
-            </div>
-        </div>
+        <InputOTP
+            ref={inputRef}
+            name={name}
+            aria-label={label}
+            aria-invalid={invalid || undefined}
+            autoComplete="one-time-code"
+            maxLength={OTP_MAX_LENGTH}
+            value={value}
+            onChange={onChange}
+            disabled={disabled}
+            pattern={pattern}
+            autoFocus={autoFocus}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+        >
+            <InputOTPGroup className="gap-2 sm:gap-2.5">
+                {Array.from({ length: OTP_MAX_LENGTH }, (_, index) => (
+                    <InputOTPSlot
+                        key={index}
+                        index={index}
+                        className={cn(
+                            'h-14 w-11 rounded-[14px] border-0 bg-white/[0.06] font-sans text-[22px] font-medium text-bone tabular-nums shadow-[inset_0_1px_0_0_oklch(1_0_0/0.1)] ring-1 ring-white/[0.14] transition-[box-shadow,background-color] duration-300 ease-glass ring-inset first:rounded-l-[14px] first:border-l-0 last:rounded-r-[14px] sm:w-12',
+                            invalid && 'ring-coral/70',
+                            focused &&
+                                index === current &&
+                                'bg-white/[0.09] ring-2 ring-mint/70',
+                        )}
+                    />
+                ))}
+            </InputOTPGroup>
+        </InputOTP>
     );
 }
 
-function TwoFactorSetupStep({
+const CORNERS = [
+    'top-0 left-0 border-t border-l',
+    'top-0 right-0 border-t border-r',
+    'bottom-0 left-0 border-b border-l',
+    'right-0 bottom-0 border-r border-b',
+] as const;
+
+function SetupStep({
     qrCodeSvg,
     manualSetupKey,
-    buttonText,
     onNextStep,
     errors,
 }: {
     qrCodeSvg: string | null;
     manualSetupKey: string | null;
-    buttonText: string;
     onNextStep: () => void;
     errors: string[];
 }) {
-    const { resolvedAppearance } = useAppearance();
     const [copiedText, copy] = useClipboard();
-    const IconComponent = copiedText === manualSetupKey ? Check : Copy;
+    const copied = manualSetupKey !== null && copiedText === manualSetupKey;
+
+    if (errors.length > 0) {
+        return (
+            <div className="grid gap-4">
+                {Array.from(new Set(errors)).map((error) => (
+                    <FieldError key={error}>{error}</FieldError>
+                ))}
+                <p className="text-[13.5px] leading-relaxed text-smoke">
+                    Close this window and try again. If it keeps happening,
+                    reload the page.
+                </p>
+            </div>
+        );
+    }
 
     return (
-        <>
-            {errors?.length ? (
-                <AlertError errors={errors} />
-            ) : (
-                <>
-                    <div className="mx-auto flex max-w-md overflow-hidden">
-                        <div className="mx-auto aspect-square w-64 rounded-lg border border-border">
-                            <div className="z-10 flex h-full w-full items-center justify-center p-5">
-                                {qrCodeSvg ? (
-                                    <div
-                                        className="aspect-square w-full rounded-lg bg-white p-2 [&_svg]:size-full"
-                                        dangerouslySetInnerHTML={{
-                                            __html: qrCodeSvg,
-                                        }}
-                                        style={{
-                                            filter:
-                                                resolvedAppearance === 'dark'
-                                                    ? 'invert(1) brightness(1.5)'
-                                                    : undefined,
-                                        }}
-                                    />
+        <div className="grid gap-6">
+            {/* The code on a light tile: phones read dark-on-light codes best. */}
+            <div className="relative mx-auto grid size-[14.5rem] place-items-center p-3">
+                {CORNERS.map((corner) => (
+                    <span
+                        key={corner}
+                        aria-hidden
+                        className={cn('absolute size-5 border-mint/60', corner)}
+                    />
+                ))}
+                {qrCodeSvg ? (
+                    <div
+                        role="img"
+                        aria-label="QR code for your authenticator app"
+                        className="size-full rounded-[14px] bg-white p-3 [&_svg]:size-full"
+                        dangerouslySetInnerHTML={{ __html: qrCodeSvg }}
+                    />
+                ) : (
+                    <Spinner className="size-6 text-mint" />
+                )}
+            </div>
+
+            <div className="grid gap-2">
+                <p
+                    id="two-factor-setup-key-label"
+                    className="text-[10px] font-medium tracking-[0.24em] text-smoke uppercase"
+                >
+                    Or type this setup key
+                </p>
+                <div className="flex h-11 items-center gap-2 rounded-[14px] bg-white/[0.06] pr-1.5 pl-3.5 shadow-[inset_0_1px_0_0_oklch(1_0_0/0.1)] ring-1 ring-white/[0.14] ring-inset">
+                    {manualSetupKey ? (
+                        <>
+                            <input
+                                type="text"
+                                readOnly
+                                value={manualSetupKey}
+                                aria-labelledby="two-factor-setup-key-label"
+                                onFocus={(event) =>
+                                    event.currentTarget.select()
+                                }
+                                className="h-full min-w-0 flex-1 bg-transparent font-mono text-[14px] tracking-[0.06em] text-bone outline-none"
+                            />
+                            <button
+                                type="button"
+                                onClick={() => void copy(manualSetupKey)}
+                                className={button({
+                                    variant: 'ghost',
+                                    size: 'xs',
+                                    className: 'shrink-0',
+                                })}
+                            >
+                                {copied ? (
+                                    <Check aria-hidden className="text-mint" />
                                 ) : (
-                                    <Spinner />
+                                    <Copy aria-hidden />
                                 )}
-                            </div>
-                        </div>
-                    </div>
+                                {copied ? 'Copied' : 'Copy'}
+                            </button>
+                        </>
+                    ) : (
+                        <Spinner className="text-mint" />
+                    )}
+                </div>
+            </div>
 
-                    <div className="flex w-full space-x-5">
-                        <Button className="w-full" onClick={onNextStep}>
-                            {buttonText}
-                        </Button>
-                    </div>
-
-                    <div className="relative flex w-full items-center justify-center">
-                        <div className="absolute inset-0 top-1/2 h-px w-full bg-border" />
-                        <span className="relative bg-card px-2 py-1">
-                            or, enter the code manually
-                        </span>
-                    </div>
-
-                    <div className="flex w-full space-x-2">
-                        <div className="flex w-full items-stretch overflow-hidden rounded-xl border border-border">
-                            {!manualSetupKey ? (
-                                <div className="flex h-full w-full items-center justify-center bg-muted p-3">
-                                    <Spinner />
-                                </div>
-                            ) : (
-                                <>
-                                    <input
-                                        type="text"
-                                        readOnly
-                                        value={manualSetupKey}
-                                        className="h-full w-full bg-background p-3 text-foreground outline-none"
-                                    />
-                                    <button
-                                        onClick={() => copy(manualSetupKey)}
-                                        className="border-l border-border px-3 hover:bg-muted"
-                                    >
-                                        <IconComponent className="w-4" />
-                                    </button>
-                                </>
-                            )}
-                        </div>
-                    </div>
-                </>
-            )}
-        </>
+            <Button
+                variant="primary"
+                className="w-full"
+                onClick={onNextStep}
+                disabled={!qrCodeSvg}
+            >
+                I’ve added it, continue
+            </Button>
+        </div>
     );
 }
 
-function TwoFactorVerificationStep({
+function VerificationStep({
     onClose,
     onBack,
 }: {
     onClose: () => void;
     onBack: () => void;
 }) {
-    const [code, setCode] = useState<string>('');
-    const pinInputContainerRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        setTimeout(() => {
-            pinInputContainerRef.current?.querySelector('input')?.focus();
-        }, 0);
-    }, []);
+    const [code, setCode] = useState('');
+    const input = useRef<HTMLInputElement>(null);
 
     return (
         <Form
             {...confirm.form()}
+            options={{ preserveScroll: true }}
             onSuccess={() => onClose()}
+            onError={() => {
+                setCode('');
+                input.current?.focus();
+            }}
             resetOnError
             resetOnSuccess
+            className="grid gap-6"
         >
             {({
                 processing,
@@ -167,46 +227,31 @@ function TwoFactorVerificationStep({
             }: {
                 processing: boolean;
                 errors?: { confirmTwoFactorAuthentication?: { code?: string } };
-            }) => (
-                <>
-                    <div
-                        ref={pinInputContainerRef}
-                        className="relative w-full space-y-3"
-                    >
-                        <div className="flex w-full flex-col items-center space-y-3 py-2">
-                            <InputOTP
-                                id="otp"
+            }) => {
+                const error = errors?.confirmTwoFactorAuthentication?.code;
+
+                return (
+                    <>
+                        <div className="grid justify-items-center gap-3 py-2">
+                            <OtpInput
                                 name="code"
-                                maxLength={OTP_MAX_LENGTH}
+                                label="Code from your authenticator app"
+                                value={code}
                                 onChange={setCode}
-                                disabled={processing}
-                                pattern={REGEXP_ONLY_DIGITS}
+                                invalid={Boolean(error)}
+                                inputRef={input}
                                 autoFocus
-                            >
-                                <InputOTPGroup>
-                                    {Array.from(
-                                        { length: OTP_MAX_LENGTH },
-                                        (_, index) => (
-                                            <InputOTPSlot
-                                                key={index}
-                                                index={index}
-                                            />
-                                        ),
-                                    )}
-                                </InputOTPGroup>
-                            </InputOTP>
-                            <InputError
-                                message={
-                                    errors?.confirmTwoFactorAuthentication?.code
-                                }
                             />
+                            {error ? (
+                                <FieldError className="text-center">
+                                    {error}
+                                </FieldError>
+                            ) : null}
                         </div>
 
-                        <div className="flex w-full space-x-5">
+                        <div className="grid grid-cols-2 gap-2">
                             <Button
-                                type="button"
-                                variant="outline"
-                                className="flex-1"
+                                variant="glass"
                                 onClick={onBack}
                                 disabled={processing}
                             >
@@ -214,17 +259,17 @@ function TwoFactorVerificationStep({
                             </Button>
                             <Button
                                 type="submit"
-                                className="flex-1"
                                 disabled={
                                     processing || code.length < OTP_MAX_LENGTH
                                 }
                             >
-                                Confirm
+                                {processing ? <Spinner /> : null}
+                                Turn it on
                             </Button>
                         </div>
-                    </div>
-                </>
-            )}
+                    </>
+                );
+            }}
         </Form>
     );
 }
@@ -241,6 +286,10 @@ type Props = {
     errors: string[];
 };
 
+/**
+ * Turning on two-factor authentication, in the admin's glass modal: scan
+ * the QR code (or type the key), then prove it works with a first code.
+ */
 export default function TwoFactorSetupModal({
     isOpen,
     onClose,
@@ -252,56 +301,20 @@ export default function TwoFactorSetupModal({
     fetchSetupData,
     errors,
 }: Props) {
-    const [showVerificationStep, setShowVerificationStep] =
-        useState<boolean>(false);
+    const [verifying, setVerifying] = useState(false);
 
-    const modalConfig = useMemo<{
-        title: string;
-        description: string;
-        buttonText: string;
-    }>(() => {
-        if (twoFactorEnabled) {
-            return {
-                title: 'Two-factor authentication enabled',
-                description:
-                    'Two-factor authentication is now enabled. Scan the QR code or enter the setup key in your authenticator app.',
-                buttonText: 'Close',
-            };
-        }
-
-        if (showVerificationStep) {
-            return {
-                title: 'Verify authentication code',
-                description:
-                    'Enter the 6-digit code from your authenticator app',
-                buttonText: 'Continue',
-            };
-        }
-
-        return {
-            title: 'Enable two-factor authentication',
-            description:
-                'To finish enabling two-factor authentication, scan the QR code or enter the setup key in your authenticator app',
-            buttonText: 'Continue',
-        };
-    }, [twoFactorEnabled, showVerificationStep]);
-
-    const resetModalState = useCallback(() => {
+    const handleClose = useCallback(() => {
         if (twoFactorEnabled) {
             clearSetupData();
         }
 
-        setShowVerificationStep(false);
-    }, [clearSetupData, twoFactorEnabled]);
-
-    const handleClose = useCallback(() => {
-        resetModalState();
+        setVerifying(false);
         onClose();
-    }, [onClose, resetModalState]);
+    }, [clearSetupData, onClose, twoFactorEnabled]);
 
-    const handleModalNextStep = useCallback(() => {
+    const handleNextStep = useCallback(() => {
         if (requiresConfirmation) {
-            setShowVerificationStep(true);
+            setVerifying(true);
 
             return;
         }
@@ -323,33 +336,42 @@ export default function TwoFactorSetupModal({
     }, [isOpen, qrCodeSvg]);
 
     return (
-        <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-            <DialogContent className="sm:max-w-md">
-                <DialogHeader className="flex items-center justify-center">
-                    <GridScanIcon />
-                    <DialogTitle>{modalConfig.title}</DialogTitle>
-                    <DialogDescription className="text-center">
-                        {modalConfig.description}
-                    </DialogDescription>
-                </DialogHeader>
-
-                <div className="flex flex-col items-center space-y-5">
-                    {showVerificationStep ? (
-                        <TwoFactorVerificationStep
-                            onClose={handleClose}
-                            onBack={() => setShowVerificationStep(false)}
-                        />
-                    ) : (
-                        <TwoFactorSetupStep
-                            qrCodeSvg={qrCodeSvg}
-                            manualSetupKey={manualSetupKey}
-                            buttonText={modalConfig.buttonText}
-                            onNextStep={handleModalNextStep}
-                            errors={errors}
-                        />
-                    )}
-                </div>
-            </DialogContent>
-        </Dialog>
+        <Modal
+            open={isOpen}
+            onOpenChange={(open) => !open && handleClose()}
+            size="sm"
+            title={
+                verifying ? (
+                    <>
+                        Enter the <em>first code.</em>
+                    </>
+                ) : (
+                    <>
+                        Add the panel to <em>your app.</em>
+                    </>
+                )
+            }
+            description={
+                verifying
+                    ? 'Type the 6-digit code your authenticator app now shows for this account.'
+                    : 'Scan the QR code with an authenticator app (1Password, Google Authenticator, Microsoft Authenticator, Authy…).'
+            }
+        >
+            <div className="pb-1">
+                {verifying ? (
+                    <VerificationStep
+                        onClose={handleClose}
+                        onBack={() => setVerifying(false)}
+                    />
+                ) : (
+                    <SetupStep
+                        qrCodeSvg={qrCodeSvg}
+                        manualSetupKey={manualSetupKey}
+                        onNextStep={handleNextStep}
+                        errors={errors}
+                    />
+                )}
+            </div>
+        </Modal>
     );
 }

@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 
 type Props = ComponentProps<typeof Link>;
 
+/** An inline link in mint with a hairline underline (sign-in pages). */
 export default function TextLink({
     className = '',
     children,
@@ -12,7 +13,7 @@ export default function TextLink({
     return (
         <Link
             className={cn(
-                'text-foreground underline decoration-neutral-300 underline-offset-4 transition-colors duration-300 ease-out hover:decoration-current! dark:decoration-neutral-500',
+                'cursor-pointer rounded-[4px] text-mint underline decoration-mint/40 decoration-1 underline-offset-[0.28em] transition-[text-decoration-color,color] duration-[380ms] ease-glass hover:text-[oklch(0.9_0.1_160)] hover:decoration-mint focus-visible:ring-2 focus-visible:ring-mint/70 focus-visible:outline-none',
                 className,
             )}
             {...props}

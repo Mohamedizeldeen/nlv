@@ -1,93 +1,73 @@
 import { KeyRound, Trash2 } from 'lucide-react';
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import {
-    Dialog,
-    DialogClose,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogTitle,
-    DialogTrigger,
-} from '@/components/ui/dialog';
+import { Button } from '@/components/admin/button';
+import { ConfirmDialog } from '@/components/admin/dialog';
+import { Badge } from '@/components/admin/status-badge';
 import type { Passkey } from '@/types/auth';
 
 type Props = {
     passkey: Passkey;
-    onDelete: (id: number, onError: () => void) => void;
+    /** Removes it; the dialog stays busy until the promise settles. */
+    onRemove: () => Promise<void>;
 };
 
-export default function PasskeyItem({ passkey, onDelete }: Props) {
-    const [isDeleting, setIsDeleting] = useState(false);
-
-    const handleDelete = () => {
-        setIsDeleting(true);
-        onDelete(passkey.id, () => setIsDeleting(false));
-    };
-
+/** One passkey: its name, where it lives, when it was added and last used. */
+export default function PasskeyItem({ passkey, onRemove }: Props) {
     return (
-        <div className="flex items-center justify-between border-b p-4 last:border-b-0">
-            <div className="flex items-center gap-4">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted">
-                    <KeyRound className="h-5 w-5 text-muted-foreground" />
-                </div>
-                <div className="space-y-1">
-                    <div className="flex items-center gap-2.5">
-                        <p className="font-medium tracking-tight">
-                            {passkey.name}
-                        </p>
-                        {passkey.authenticator && (
-                            <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-[11px] font-medium tracking-wide text-muted-foreground uppercase ring-1 ring-border ring-inset">
-                                {passkey.authenticator}
-                            </span>
-                        )}
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                        Added {passkey.created_at_diff}
-                        {passkey.last_used_at_diff && (
-                            <>
-                                <span className="mx-1 text-muted-foreground/50">
-                                    /
-                                </span>
-                                Last used {passkey.last_used_at_diff}
-                            </>
-                        )}
+        <li className="flex items-center gap-4 px-5 py-4 sm:px-6">
+            <span
+                aria-hidden
+                className="grid size-10 shrink-0 place-items-center rounded-[14px] bg-white/[0.06] text-mint ring-1 ring-white/[0.12] ring-inset"
+            >
+                <KeyRound className="size-[18px]" />
+            </span>
+            <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+                    <p className="truncate text-[14.5px] font-medium text-bone">
+                        {passkey.name}
                     </p>
+                    {passkey.authenticator ? (
+                        <Badge tone="muted">{passkey.authenticator}</Badge>
+                    ) : null}
                 </div>
+                <p className="mt-0.5 text-[12.5px] text-smoke">
+                    Added {passkey.created_at_diff}
+                    {passkey.last_used_at_diff ? (
+                        <>
+                            <span aria-hidden className="mx-1.5 text-white/25">
+                                ·
+                            </span>
+                            last used {passkey.last_used_at_diff}
+                        </>
+                    ) : (
+                        <>
+                            <span aria-hidden className="mx-1.5 text-white/25">
+                                ·
+                            </span>
+                            never used
+                        </>
+                    )}
+                </p>
             </div>
-
-            <Dialog>
-                <DialogTrigger asChild>
+            <ConfirmDialog
+                trigger={
                     <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        variant="danger"
+                        size="xs"
+                        aria-label={`Remove the passkey “${passkey.name}”`}
                     >
-                        <Trash2 className="h-4 w-4" />
-                        <span className="sr-only">Remove</span>
+                        <Trash2 aria-hidden />
+                        <span className="max-sm:sr-only">Remove</span>
                     </Button>
-                </DialogTrigger>
-                <DialogContent>
-                    <DialogTitle>Remove passkey</DialogTitle>
-                    <DialogDescription>
-                        Are you sure you want to remove the "{passkey.name}"
-                        passkey? You will no longer be able to use it to sign
-                        in.
-                    </DialogDescription>
-                    <DialogFooter className="gap-2">
-                        <DialogClose asChild>
-                            <Button variant="secondary">Cancel</Button>
-                        </DialogClose>
-                        <Button
-                            variant="destructive"
-                            onClick={handleDelete}
-                            disabled={isDeleting}
-                        >
-                            {isDeleting ? 'Removing...' : 'Remove passkey'}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-        </div>
+                }
+                title={
+                    <>
+                        Remove this <em>passkey?</em>
+                    </>
+                }
+                description={`“${passkey.name}” won’t be able to log you in any more. Your other passkeys and your password keep working.`}
+                confirmLabel="Remove passkey"
+                onConfirm={onRemove}
+            />
+        </li>
     );
 }

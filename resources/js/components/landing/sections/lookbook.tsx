@@ -6,12 +6,14 @@ import {
     useState,
     useSyncExternalStore,
 } from 'react';
-import type { CSSProperties, KeyboardEvent } from 'react';
+import type { CSSProperties, KeyboardEvent, ReactNode } from 'react';
 import { useI18n } from '@/hooks/use-i18n';
 import { cn } from '@/lib/utils';
 import type { LandingLook } from '@/types/landing';
 import { Accent } from '../accent';
 import { hasSection, useContent, useLanding } from '../landing-data';
+import { Managed } from '../managed';
+import { messageParts } from '../message-parts';
 import { useOrderDialog } from '../order-dialog';
 import { Photo } from '../photo';
 import { Container, cta, Glow, SectionHeader, useInView } from '../primitives';
@@ -29,7 +31,7 @@ type FilterOption = { id: Filter; label: string };
 
 /** The weekly trend note that opens the grid for each filter. */
 type Note = {
-    kicker: string;
+    kicker: ReactNode;
     figure: string | null;
     unit: string | null;
     line: string | null;
@@ -75,9 +77,13 @@ function useEdit(): {
             ...lookbook.categories.map((category): [Filter, Note] => [
                 category.slug,
                 {
-                    kicker: categorySuffix
-                        ? `${category.name} · ${categorySuffix}`
-                        : category.name,
+                    kicker: categorySuffix ? (
+                        <>
+                            <Managed text={category.name} /> · {categorySuffix}
+                        </>
+                    ) : (
+                        <Managed text={category.name} />
+                    ),
                     figure: category.stat?.figure ?? null,
                     unit: category.stat?.unit ?? null,
                     line: category.note,
@@ -555,7 +561,7 @@ function FilterTabs({
                                         : 'text-mist hover:text-bone',
                                 )}
                             >
-                                {filter.label}
+                                <Managed text={filter.label} />
                             </button>
                         );
                     })}
@@ -569,7 +575,7 @@ function FilterTabs({
                                 key={filter.id}
                                 className="grid h-10 flex-auto place-items-center px-2.5 text-[13px] font-medium whitespace-nowrap text-ink sm:flex-none sm:px-5 sm:text-sm"
                             >
-                                {filter.label}
+                                <Managed text={filter.label} />
                             </span>
                         ))}
                     </div>
@@ -615,7 +621,7 @@ function TrendNote({
             ) : null}
             {unit ? (
                 <p className="mt-5 font-display text-xl leading-tight text-mint italic sm:mt-2 sm:text-2xl rtl:leading-[1.5]">
-                    {unit}
+                    <Managed text={unit} />
                 </p>
             ) : null}
             {note?.line ? (
@@ -626,7 +632,9 @@ function TrendNote({
                         !figure && 'col-span-2',
                     )}
                 >
-                    {keepHyphenated(note.line)}
+                    <Managed text={note.line}>
+                        {keepHyphenated(note.line)}
+                    </Managed>
                 </p>
             ) : null}
         </div>
@@ -638,7 +646,7 @@ function TrendNote({
  * separate text nodes, as they were when the line was plain JSX: Chromium
  * shapes each node on its own, so the English line keeps its exact glyph
  * positions. Takes the message with its placeholders left in, e.g.
- * `t('lookbook.lookCity', { number: '{number}', city: '{city}' })`.
+ * `t('lookbook.slotKicker', { number: '{number}' })`.
  */
 function fill(message: string, values: Record<string, string>): string[] {
     return message
@@ -649,12 +657,12 @@ function fill(message: string, values: Record<string, string>): string[] {
 
 /**
  * A figure without letters ("38%", "+33%", "54") is isolated left to right,
- * so Arabic text doesn't move its sign; a word ("Sat", "السبت") is left to
- * the paragraph's own direction.
+ * so Arabic text doesn't move its sign; a word ("السبت") is left to the
+ * paragraph's own direction, or set as an English run ("Sat", untranslated).
  */
 function Figure({ value }: { value: string }) {
     return /\p{L}/u.test(value) ? (
-        value
+        <Managed text={value} />
     ) : (
         <span className="bidi-ltr">{value}</span>
     );
@@ -856,13 +864,10 @@ function LookCard({
             <figcaption className="pointer-events-none absolute inset-x-2.5 bottom-2.5 rounded-[16px] px-3.5 pt-2.5 pb-3 glass-strong">
                 <span className="flex items-center justify-between gap-3 text-[10px] leading-4 font-medium tracking-[0.2em] text-smoke uppercase rtl:text-xs rtl:leading-5">
                     <span className="truncate">
-                        {fill(
-                            t('lookbook.lookCity', {
-                                number: '{number}',
-                                city: '{city}',
-                            }),
-                            { number: look.number, city: look.city },
-                        )}
+                        {messageParts(t, 'lookbook.lookCity', {
+                            number: look.number,
+                            city: <Managed text={look.city} />,
+                        })}
                     </span>
                     <span className="shrink-0 tracking-[0.06em] normal-case tabular-nums">
                         <span className="sr-only">
@@ -879,7 +884,7 @@ function LookCard({
                     </span>
                 </span>
                 <span className="mt-1 block font-display text-[17px] leading-snug font-medium text-bone">
-                    {look.title}
+                    <Managed text={look.title} />
                 </span>
             </figcaption>
 

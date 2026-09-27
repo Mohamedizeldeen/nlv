@@ -1,5 +1,6 @@
 import { usePage } from '@inertiajs/react';
 import { dashboard } from '@/routes/admin';
+import { edit as editProfile } from '@/routes/profile';
 
 /*
  * The admin sidebar, in order. Every module lives under one path prefix;
@@ -117,6 +118,20 @@ export const ADMIN_NAV: AdminNavGroup[] = [
                 label: 'Users',
                 href: '/admin/users',
                 index: '09',
+            },
+        ],
+    },
+    {
+        // The signed-in admin's own profile, password, two-factor and
+        // passkeys (/settings/*, see layouts/account-layout.tsx).
+        label: 'Settings',
+        entries: [
+            {
+                key: 'account',
+                label: 'Account',
+                href: editProfile.url(),
+                match: ['/settings'],
+                index: '10',
             },
         ],
     },

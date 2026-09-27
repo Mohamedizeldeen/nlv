@@ -10,6 +10,7 @@ import howItWorks from './sections/how-it-works';
 import kiosk from './sections/kiosk';
 import lookbook from './sections/lookbook';
 import navbar from './sections/navbar';
+import notFound from './sections/not-found';
 import orderDialog from './sections/order-dialog';
 import page from './sections/page';
 import partners from './sections/partners';
@@ -48,6 +49,7 @@ export const MESSAGES = {
     footer,
     'order-dialog': orderDialog,
     page,
+    'not-found': notFound,
 } as const;
 
 type Registry = typeof MESSAGES;

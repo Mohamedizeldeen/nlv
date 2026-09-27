@@ -1,11 +1,13 @@
 import { ArrowLeft, ArrowRight } from 'lucide-react';
-import { useId, useRef, useState } from 'react';
+import { Fragment, useId, useRef, useState } from 'react';
 import type { CSSProperties, KeyboardEvent, PointerEvent } from 'react';
 import { useI18n } from '@/hooks/use-i18n';
 import { cn } from '@/lib/utils';
 import type { LandingStory, MediaRef } from '@/types/landing';
 import { Accent } from '../accent';
 import { hasSection, useContent, useLanding } from '../landing-data';
+import { Managed, englishRun } from '../managed';
+import { messageParts } from '../message-parts';
 import { Photo } from '../photo';
 import { Container, cta, Glow, Reveal, SectionHeader } from '../primitives';
 
@@ -29,18 +31,30 @@ function Figure({ value }: { value: string }) {
     );
 }
 
+/** A figure with its degree sign, minutes and seconds: 24.71°, 51° 30′ 26″. */
+const DEGREES = /([-−+]?\d[\d.,]*°(?:\s?\d[\d.,]*[′'](?:\s?\d[\d.,]*[″"])?)?)/;
+
 /**
- * A message's text with its {placeholders} filled by values that stay
- * separate text nodes, as they were when the line was plain JSX: Chromium
- * shapes each node on its own, so the English line keeps its exact glyph
- * positions. Takes the message with its placeholders left in, e.g.
- * `t('testimonials.place', { store: '{store}', city: '{city}' })`.
+ * A story's coordinates. The Arabic page names the compass points in
+ * Arabic ("24.71° شمالًا · 46.68° شرقًا"), and each figure is isolated
+ * left to right: otherwise the bidi algorithm moves the second degree sign
+ * to the other side of its figure ("°46.68"). Coordinates in another
+ * format stay as the admin typed them (an English run on the Arabic page).
  */
-function fill(message: string, values: Record<string, string>): string[] {
-    return message
-        .split(/\{(\w+)\}/)
-        .map((part, index) => (index % 2 ? (values[part] ?? '') : part))
-        .filter(Boolean);
+function Coordinates({ value }: { value: string }) {
+    if (!/\p{Script=Arabic}/u.test(value)) {
+        return <Managed text={value} />;
+    }
+
+    return value.split(DEGREES).map((part, index) =>
+        index % 2 ? (
+            <span key={index} className="bidi-ltr">
+                {part}
+            </span>
+        ) : (
+            <Fragment key={index}>{part}</Fragment>
+        ),
+    );
 }
 
 /** The featured portrait's frame, width / height. */
@@ -147,15 +161,19 @@ function Stories({ stories }: { stories: LandingStory[] }) {
     const title = useContent('sections.stories.title');
     const lede = useContent('sections.stories.lede');
     const footnote = useContent('sections.stories.footnote');
-    const { isRtl, t } = useI18n();
-    const place = t('testimonials.place', {
-        store: '{store}',
-        city: '{city}',
-    });
-    const placeShort = t('testimonials.placeShort', {
-        store: '{store}',
-        city: '{city}',
-    });
+    const { isRtl, locale, t } = useI18n();
+    // "Rimal Abayas, Riyadh": each value its own text node, as it was
+    // typeset in JSX (Chromium shapes text nodes separately).
+    const place = (story: LandingStory) =>
+        messageParts(t, 'testimonials.place', {
+            store: <Managed text={story.store} />,
+            city: <Managed text={story.city} />,
+        });
+    const placeShort = (story: LandingStory) =>
+        messageParts(t, 'testimonials.placeShort', {
+            store: <Managed text={story.store} />,
+            city: <Managed text={story.city} />,
+        });
     const [chosen, setActive] = useState(0);
     const tabs = useRef<(HTMLButtonElement | null)[]>([]);
     const swipe = useRef<{ x: number; y: number } | null>(null);
@@ -298,12 +316,20 @@ function Stories({ stories }: { stories: LandingStory[] }) {
                                                     : 'opacity-0',
                                             )}
                                         >
-                                            <span className="text-[10px] leading-none font-medium tracking-[0.28em] text-bone uppercase rtl:text-xs rtl:leading-tight">
+                                            <span
+                                                {...englishRun(
+                                                    locale,
+                                                    item.city,
+                                                )}
+                                                className="text-[10px] leading-none font-medium tracking-[0.28em] text-bone uppercase rtl:text-right rtl:text-xs rtl:leading-tight"
+                                            >
                                                 {item.city}
                                             </span>
                                             {item.coordinates ? (
                                                 <span className="text-[11px] leading-none text-smoke tabular-nums rtl:leading-tight">
-                                                    {item.coordinates}
+                                                    <Coordinates
+                                                        value={item.coordinates}
+                                                    />
                                                 </span>
                                             ) : null}
                                         </p>
@@ -344,26 +370,31 @@ function Stories({ stories }: { stories: LandingStory[] }) {
                                                 )}
                                             >
                                                 <p>
-                                                    <Accent
-                                                        text={item.quote}
-                                                        className="text-mint not-italic"
-                                                    />
+                                                    <Managed
+                                                        text={plainQuote(item)}
+                                                    >
+                                                        <Accent
+                                                            text={item.quote}
+                                                            className="text-mint not-italic"
+                                                        />
+                                                    </Managed>
                                                 </p>
                                             </blockquote>
 
                                             <figcaption className="mt-auto flex flex-col items-start gap-5 pt-8 xl:flex-row xl:items-end xl:justify-between">
                                                 <span className="flex flex-col gap-1 border-s border-mint/40 ps-4">
                                                     <span className="text-[17px] leading-snug font-medium text-bone">
-                                                        {item.name}
+                                                        <Managed
+                                                            text={item.name}
+                                                        />
                                                     </span>
                                                     <span className="text-sm leading-snug text-mist">
-                                                        {item.role}
+                                                        <Managed
+                                                            text={item.role}
+                                                        />
                                                     </span>
                                                     <span className="text-sm leading-snug text-smoke">
-                                                        {fill(place, {
-                                                            store: item.store,
-                                                            city: item.city,
-                                                        })}
+                                                        {place(item)}
                                                     </span>
                                                 </span>
                                                 <span className="inline-flex items-center gap-3 rounded-[14px] py-2.5 ps-3.5 pe-4 glass-thin">
@@ -377,14 +408,22 @@ function Stories({ stories }: { stories: LandingStory[] }) {
                                                     </span>
                                                     <span className="flex flex-col gap-0.5">
                                                         <span className="text-[13px] leading-tight text-bone">
-                                                            {item.metric.label}
+                                                            <Managed
+                                                                text={
+                                                                    item.metric
+                                                                        .label
+                                                                }
+                                                            />
                                                         </span>
                                                         {item.metric.note ? (
                                                             <span className="text-xs leading-tight text-smoke">
-                                                                {
-                                                                    item.metric
-                                                                        .note
-                                                                }
+                                                                <Managed
+                                                                    text={
+                                                                        item
+                                                                            .metric
+                                                                            .note
+                                                                    }
+                                                                />
                                                             </span>
                                                         ) : null}
                                                     </span>
@@ -515,8 +554,12 @@ function Stories({ stories }: { stories: LandingStory[] }) {
                                         />
                                         <span className="flex min-w-0 flex-col gap-0.5">
                                             <span
+                                                {...englishRun(
+                                                    locale,
+                                                    item.name,
+                                                )}
                                                 className={cn(
-                                                    'truncate text-[15px] font-medium transition-colors duration-[380ms] ease-glass',
+                                                    'truncate text-[15px] font-medium transition-colors duration-[380ms] ease-glass rtl:text-right',
                                                     selected
                                                         ? 'text-bone'
                                                         : 'text-mist group-hover/tab:text-bone',
@@ -525,10 +568,7 @@ function Stories({ stories }: { stories: LandingStory[] }) {
                                                 {item.name}
                                             </span>
                                             <span className="truncate text-[13px] text-smoke">
-                                                {fill(placeShort, {
-                                                    store: item.store,
-                                                    city: item.city,
-                                                })}
+                                                {placeShort(item)}
                                             </span>
                                         </span>
                                         <span className="flex flex-col items-end gap-1.5">
@@ -544,11 +584,23 @@ function Stories({ stories }: { stories: LandingStory[] }) {
                                                     value={item.metric.figure}
                                                 />
                                             </span>
-                                            <span className="text-[10px] leading-none tracking-[0.18em] text-smoke uppercase rtl:text-[11px] rtl:leading-tight">
+                                            <span
+                                                {...englishRun(
+                                                    locale,
+                                                    item.metric.short,
+                                                )}
+                                                className="text-[10px] leading-none tracking-[0.18em] text-smoke uppercase rtl:text-[11px] rtl:leading-tight"
+                                            >
                                                 {item.metric.short}
                                             </span>
                                         </span>
-                                        <span className="col-span-3 mt-3.5 hidden font-display text-[15px] leading-snug text-mist italic md:line-clamp-2">
+                                        <span
+                                            {...englishRun(
+                                                locale,
+                                                plainQuote(item),
+                                            )}
+                                            className="col-span-3 mt-3.5 hidden font-display text-[15px] leading-snug text-mist italic md:line-clamp-2"
+                                        >
                                             {plainQuote(item)}
                                         </span>
                                     </button>

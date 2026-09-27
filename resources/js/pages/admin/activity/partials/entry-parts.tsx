@@ -165,7 +165,7 @@ export function propertyItems(
  * (127.0.0.1, "Symfony"): not worth showing as an address and a browser.
  */
 function fromConsole(entry: ActivityEntry): boolean {
-    return entry.actor === 'System' && entry.userAgent === 'Symfony';
+    return entry.actorKind === 'system' && entry.userAgent === 'Symfony';
 }
 
 /** When, who, what record, and where from. */
@@ -203,9 +203,16 @@ export function metaItems(
                         {entry.user.email}
                     </span>
                 </span>
+            ) : entry.actorKind === 'deleted' ? (
+                <span className="grid">
+                    <span>{entry.causerName}</span>
+                    <span className="text-[13px] text-smoke">
+                        This account has since been deleted
+                    </span>
+                </span>
             ) : (
                 <span className="text-mist">
-                    {entry.actor === 'System'
+                    {entry.actorKind === 'system'
                         ? 'System (console or scheduled task)'
                         : 'A visitor, not signed in'}
                 </span>

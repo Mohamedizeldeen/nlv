@@ -6,13 +6,15 @@ import { cn } from '@/lib/utils';
 import { Accent } from '../accent';
 import { IMAGES } from '../images';
 import { useContent } from '../landing-data';
-import { useOrderDialog } from '../order-dialog';
+import { TalkLine, useOrderDialog, useTalkNumbers } from '../order-dialog';
 import { Photo } from '../photo';
 import { Container, Glow, Reveal, cta } from '../primitives';
 
 /*
  * The order section. Its copy comes from the admin (order.* settings); the
  * email field and button open the order pop-up with the address filled in.
+ * Under them: the contact email, the demo link and, when set, the phone and
+ * WhatsApp numbers (contact.* settings).
  */
 
 // Placeholder content: replace before launch. -----------------------------
@@ -261,20 +263,35 @@ function OrderForm() {
     );
 }
 
-/** Email and demo links; hidden while no contact email is set. */
+/**
+ * Email and demo links (while a contact email is set), then "Prefer to
+ * talk?" with the phone and WhatsApp numbers (while either is set).
+ */
 function PanelFooter() {
     const email = useContent('contact.email');
-    const emailPrompt = useContent('order.email_prompt');
-    const demoPrompt = useContent('order.demo_prompt');
-    const demoLink = useContent('order.demo_link');
-    const demoSubject = useContent('order.demo_subject');
+    const { phone, whatsapp } = useTalkNumbers();
 
-    if (!email) {
+    if (!email && !phone && !whatsapp) {
         return null;
     }
 
     return (
         <div className="mt-10 flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-t border-white/10 pt-5 text-[14px]">
+            {email ? <EmailLinks email={email} /> : null}
+            {/* A row of its own, under the two links. */}
+            <TalkLine className="basis-full" />
+        </div>
+    );
+}
+
+function EmailLinks({ email }: { email: string }) {
+    const emailPrompt = useContent('order.email_prompt');
+    const demoPrompt = useContent('order.demo_prompt');
+    const demoLink = useContent('order.demo_link');
+    const demoSubject = useContent('order.demo_subject');
+
+    return (
+        <>
             <p className="text-smoke">
                 {emailPrompt}{' '}
                 <a
@@ -298,7 +315,7 @@ function PanelFooter() {
                     />
                 </span>
             </a>
-        </div>
+        </>
     );
 }
 

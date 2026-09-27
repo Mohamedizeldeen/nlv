@@ -2,7 +2,8 @@
 
 The admin panel lives at `/admin`. It manages the landing page's content and collects the
 "Order a device" requests. Only admins can open it (signed in, email verified). Other signed-in users
-get a 403 page, and guests are sent to the login page. Admins land on `/admin` after signing in.
+get a 403 page, and guests are sent to the login page. Everyone lands on `/admin` after signing in;
+the starter kit's old `/dashboard` address redirects there for good (301).
 
 ## What the admin controls
 
@@ -16,12 +17,15 @@ get a 403 page, and guests are sent to the login page. Admins land on `/admin` a
 | Pages        | `/admin/pages`                           | Markdown pages at `/pages/{slug}` (About, Privacy, Terms...), and which footer column lists them.                                                                                            |
 | Site content | `/admin/content`                         | Page copy by section, contact details, social links, headline figures, SEO title and description, and the address new requests are emailed to. An empty field shows the default copy.        |
 | Activity log | `/admin/activity`                        | See [Activity log](#activity-log).                                                                                                                                                           |
-| Users        | `/admin/users`                           | Every account. Make someone an admin, or remove their admin rights.                                                                                                                          |
+| Users        | `/admin/users`                           | Every account, all of them admins. Add someone with a password you set or an emailed link, change a name or email, set a new password or send a link, delete an account.                     |
 
 The product mockups (hero photo, device screens, partner wordmarks, the fanned looks at the end) are
 designed artwork in the code, not managed content.
 
 ## Admin accounts
+
+Every account is an admin: there are no other roles, and nobody can sign up on their own. Admins add
+the people who run the site.
 
 Create the first admin on the server:
 
@@ -33,15 +37,62 @@ The command asks for anything missing (the password needs at least 12 characters
 verified account. If the email already belongs to a user, that user becomes an admin. In a
 non-interactive script, pass `--password=...` too.
 
-To add more admins, the person registers at `/register` and confirms their email. Then an admin
-promotes them under **Users**, or on the server:
+After that, add people under **Users → Add user** (`/admin/users/create`): a name, an email address
+(saved in lowercase), and one of:
+
+- **Set a password now.** At least 12 characters; in production it also needs upper and lower case,
+  a number and a symbol, and must not appear in known data leaks. Nothing is emailed: pass it on
+  yourself. "Suggest one" fills in a strong password you can copy.
+- **Email them a link.** They get an email with a button to the app's password page (the same kind
+  of link as "Forgot your password?"). It works for 60 minutes (`auth.passwords.users.expire`), and
+  needs working mail (see the production checklist). With `MAIL_MAILER=log` the email lands in
+  `storage/logs/laravel.log`. If it can't be sent, the account is still added and its page opens so
+  you can send the link again.
+
+Accounts added here are verified admins straight away and sign in at `/login`.
+
+On an account's page (`/admin/users/{id}/edit`):
+
+- **Name and email.** The account stays verified with a new address, and a password link sent to
+  the old one stops working.
+- **Password.** Set a new one now (the person is signed out on every device), or email them a link
+  to choose one (their current password keeps working until they use it; one link a minute). Admins
+  change their own password, two-factor and passkeys in their account settings, which ask for the
+  current password first.
+- **Delete.** Type the account's email address to confirm. You can't delete your own account here,
+  and the last admin can never be deleted. Leads assigned to the account become unassigned (each
+  lead's timeline says why), and its past activity stays in the log under the name it had, marked
+  "(deleted account)".
+
+Each of these is logged: `user.created`, `user.updated` (with a before/after of the name and email),
+`user.password_set`, `user.password_link_sent` and `user.deleted`. Passwords never reach the log.
+
+An account made before every account was an admin shows as "No panel access". Open it and choose
+**Give panel access**, or on the server:
 
 ```sh
 php artisan admin:grant colleague@example.com
 ```
 
-Admin rights are removed under **Users**. The last admin cannot be demoted. Accounts are never deleted
-from the admin panel. Users delete their own account under Settings → Profile.
+## Signing in and your account
+
+**Logging in.** Everyone logs in at `/login`, in the admin's design: email and password (with "Keep me
+logged in on this device"), or a passkey. There is no public sign-up: `/register` is a 404, and the
+login page says to ask an admin. "Forgot your password?" emails a link to choose a new one (it works
+for 60 minutes). Accounts with two-factor authentication are then asked for the 6-digit code from
+their authenticator app, or one of their recovery codes. The landing page's navbar shows **Admin
+panel** (Arabic: لوحة التحكم) instead of **Log in** to anyone signed in.
+
+**Your account.** **Account**, at the bottom of the admin sidebar (also **Profile** in the account
+menu under it), holds each admin's own settings in two tabs:
+
+| Tab      | Path                 | What it does                                                                                                                                                                           |
+| -------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Profile  | `/settings/profile`  | Your name and email address. A new address has to be confirmed from the email that is sent; the panel stays locked until then. Also deletes your own account (asks for your password). |
+| Security | `/settings/security` | Change your password; turn two-factor authentication on (scan a QR code, enter the first code) or off, show, copy or regenerate recovery codes; list, add and remove passkeys.         |
+
+The Security tab asks for your password first (or a passkey), then not again for three hours
+(`auth.password_timeout`). There is no appearance setting: the admin is always dark.
 
 ## Content
 
@@ -61,6 +112,11 @@ empty.
 Everything seeded is placeholder content: the people, stores and figures are fictional, and the pages
 are marked as placeholders. Replace it before launch.
 
+**Site content → Contact** details are public as soon as they are filled in: the phone and WhatsApp
+numbers appear in the footer, under the order section's email line and on the order pop-up's thank-you
+screen (as call and WhatsApp links), and the office address appears in the footer. An empty field hides
+its line.
+
 ## Activity log
 
 **Activity log** in the sidebar (`/admin/activity`) lists every change and sign-in. That covers
@@ -68,9 +124,11 @@ content created, edited, reordered or deleted (with a before/after table of the 
 settings and prices saved, and leads submitted, updated or exported. It also covers admin rights
 granted or removed, sign-ins, sign-outs, failed sign-ins, password resets and two-factor changes.
 Each entry shows who did it, when, and from which IP address and browser. You can filter by kind of
-event, person, date range or text.
+event, person, date range or text. **Done by → Deleted accounts** shows what accounts that have
+since been deleted did; they keep their name, marked "(deleted account)".
 
-Entries are stored in the `activity_logs` table and are never pruned automatically.
+Entries are stored in the `activity_logs` table and are never pruned automatically. Each one keeps
+the name of the person who did it (`causer_name`), so deleting an account doesn't blank its history.
 
 ## Production checklist
 

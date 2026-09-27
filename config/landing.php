@@ -82,18 +82,18 @@ return [
         'contact.phone' => [
             'group' => 'contact', 'label' => 'Phone', 'type' => 'phone',
             'default' => '',
-            'help' => 'International format, e.g. +971 4 123 4567. Leave empty to hide it.',
+            'help' => 'In international format, e.g. +971 4 123 4567. Shown as typed in the footer, the order section and the order thank-you screen. Leave empty to hide it.',
         ],
         'contact.whatsapp' => [
             'group' => 'contact', 'label' => 'WhatsApp number', 'type' => 'phone',
             'default' => '',
-            'help' => 'International format with the country code. Leave empty to hide it.',
+            'help' => 'In international format, e.g. +971 4 123 4567. Opens a WhatsApp chat from the footer, the order section and the order thank-you screen. Leave empty to hide it.',
         ],
         'contact.address' => [
             'group' => 'contact', 'label' => 'Office address', 'type' => 'textarea', 'translatable' => true,
             'default' => '',
             'default_ar' => '',
-            'help' => 'Leave empty to hide it.',
+            'help' => 'Shown in the footer. Leave empty to hide it.',
         ],
         'contact.lead_notify_email' => [
             'group' => 'contact', 'label' => 'Send new order requests to', 'type' => 'email',
@@ -124,7 +124,7 @@ return [
         'stats.stores' => [
             'group' => 'stats', 'label' => 'Stores', 'type' => 'number',
             'default' => 140,
-            'help' => 'Stores with a device. Shown as "140+ stores" and "across 140 stores".',
+            'help' => 'Stores with a device. Shown with a plus in the partners band, and under the live try-on counter on the hero.',
         ],
         'stats.countries' => [
             'group' => 'stats', 'label' => 'Countries', 'type' => 'number',

@@ -1,17 +1,28 @@
+import type { SharedPageProps } from '@inertiajs/core';
 import { createInertiaApp } from '@inertiajs/react';
+import { BRAND } from '@/components/landing/brand';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { initializeTheme } from '@/hooks/use-appearance';
+import AccountLayout, { AccountFrame } from '@/layouts/account-layout';
 import AdminLayout from '@/layouts/admin-layout';
-import AppLayout from '@/layouts/app-layout';
 import AuthLayout from '@/layouts/auth-layout';
-import SettingsLayout from '@/layouts/settings/layout';
 
-const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
+/*
+ * The browser tab: "{page} - TryOn". A title that already names the brand
+ * (the landing's own title, set in the admin under Site content → Search and
+ * sharing) is used whole.
+ */
+function tabTitle(title: string): string {
+    if (!title) {
+        return BRAND.name;
+    }
+
+    return title.includes(BRAND.name) ? title : `${title} - ${BRAND.name}`;
+}
 
 void createInertiaApp({
-    title: (title) => (title ? `${title} - ${appName}` : appName),
-    layout: (name) => {
+    title: tabTitle,
+    layout: (name, page) => {
         switch (true) {
             // The landing page and the public content pages (/pages/{slug})
             // bring their own landing-design chrome.
@@ -21,10 +32,21 @@ void createInertiaApp({
                 return AuthLayout;
             case name.startsWith('admin/'):
                 return AdminLayout;
-            case name.startsWith('settings/'):
-                return [AppLayout, SettingsLayout];
+            // The signed-in account's own pages (Account in the admin
+            // sidebar): inside the admin panel, whose sidebar stays mounted
+            // between them and the admin's pages. Accounts without admin
+            // access get them in a plain frame, without the admin's menu.
+            case name.startsWith('settings/'): {
+                const auth = page.props.auth as
+                    | SharedPageProps['auth']
+                    | undefined;
+
+                return auth?.user?.is_admin
+                    ? [AdminLayout, AccountLayout]
+                    : [AccountFrame, AccountLayout];
+            }
             default:
-                return AppLayout;
+                return null;
         }
     },
     strictMode: true,
@@ -37,9 +59,6 @@ void createInertiaApp({
         );
     },
     progress: {
-        color: '#4B5563',
+        color: '#7fe3b0',
     },
 });
-
-// This will set light / dark mode on load...
-initializeTheme();

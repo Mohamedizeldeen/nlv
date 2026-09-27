@@ -635,7 +635,7 @@ class LandingContentSeeder extends Seeder
                     'name_ar' => 'الأزياء اليومية',
                     'note_ar' => 'الأكثر شراءً بعد التجربة من مختارات الأسبوع: جاكيت دنيم، ومعطف جملي، وبدلة كحلية.',
                     'stat_figure_ar' => '38%',
-                    'stat_unit_ar' => 'دخلت حقيبة التسوّق',
+                    'stat_unit_ar' => 'انتهت إلى الشراء',
                 ],
                 'evening' => [
                     'name_ar' => 'أزياء السهرة',
@@ -745,7 +745,7 @@ class LandingContentSeeder extends Seeder
                     ],
                     'cta_label_ar' => 'اطلب جهازك',
                     'badge_ar' => 'الأكثر اختيارًا',
-                    'badge_note_ar' => 'اختيار 6 من كل 10 متاجر جديدة',
+                    'badge_note_ar' => 'تختاره 6 من كل 10 متاجر جديدة',
                 ],
                 'chain' => [
                     'name_ar' => 'سلاسل المتاجر',

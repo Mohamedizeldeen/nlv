@@ -17,11 +17,9 @@ import Partners from '@/components/landing/sections/partners';
 import Pricing from '@/components/landing/sections/pricing';
 import Testimonials from '@/components/landing/sections/testimonials';
 import { useDocumentLocale } from '@/hooks/use-i18n';
-import { dashboard, login } from '@/routes';
+import { login } from '@/routes';
+import { dashboard as adminDashboard } from '@/routes/admin';
 import type { LandingData } from '@/types/landing';
-/* @chisel-registration */
-import { register } from '@/routes';
-/* @end-chisel-registration */
 
 export default function Welcome({ landing }: { landing: LandingData }) {
     const { auth } = usePage().props;
@@ -31,10 +29,7 @@ export default function Welcome({ landing }: { landing: LandingData }) {
     const links: LandingLinks = {
         signedIn: Boolean(auth.user),
         signIn: login(),
-        dashboard: dashboard(),
-        /* @chisel-registration */
-        signUp: register(),
-        /* @end-chisel-registration */
+        admin: adminDashboard(),
     };
 
     // The landing page is always dark and scrolls smoothly to anchors.

@@ -2,7 +2,7 @@
 
 namespace App\Http\Responses;
 
-use App\Http\Responses\Concerns\RedirectsAdminsToPanel;
+use App\Http\Responses\Concerns\RedirectsToAdminPanel;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Laravel\Fortify\Contracts\LoginResponse as LoginResponseContract;
@@ -10,7 +10,7 @@ use Symfony\Component\HttpFoundation\Response;
 
 class LoginResponse implements LoginResponseContract
 {
-    use RedirectsAdminsToPanel;
+    use RedirectsToAdminPanel;
 
     /**
      * Create an HTTP response that represents the object.
@@ -21,6 +21,6 @@ class LoginResponse implements LoginResponseContract
     {
         return $request->wantsJson()
             ? new JsonResponse(['two_factor' => false])
-            : redirect()->intended($this->home($request));
+            : redirect()->intended($this->home());
     }
 }

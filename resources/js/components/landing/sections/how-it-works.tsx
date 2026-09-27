@@ -30,7 +30,10 @@ const DEMO = {
     confidence: 96,
     landmarks: 17,
     pieces: 412,
-    /** The store's wordmark on the mirror: Latin artwork on both pages. */
+    /**
+     * The store's wordmark on the mirror: Latin artwork on both pages, set
+     * with lang="en" so the Arabic page keeps its tracking.
+     */
     wordmark: 'Maison Rimal',
     /** Path of the saved-look page the QR code opens. */
     savedLook: '/l/7K2Q',
@@ -129,7 +132,10 @@ function ScreenBar() {
                 <LogoMark className="h-2" />
                 {BRAND.name}
             </span>
-            <span className="text-[7px] leading-none tracking-[0.14em] text-mist">
+            <span
+                lang="en"
+                className="text-[7px] leading-none tracking-[0.14em] text-mist"
+            >
                 {LANGUAGES}
             </span>
         </div>
@@ -369,7 +375,10 @@ function CatalogueScreen({ on }: { on: boolean }) {
             <ScreenBar />
             <div className="absolute inset-x-0 top-[26px] px-2.5">
                 <div className="flex items-baseline justify-between border-t border-white/10 pt-2">
-                    <span className="text-[7.5px] font-medium tracking-[0.24em] text-bone uppercase">
+                    <span
+                        lang="en"
+                        className="text-[7.5px] font-medium tracking-[0.24em] text-bone uppercase"
+                    >
                         {DEMO.wordmark}
                     </span>
                     <span className="text-[7px] text-smoke tabular-nums">

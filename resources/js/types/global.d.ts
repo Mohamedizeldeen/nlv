@@ -13,10 +13,9 @@ declare module '@inertiajs/core' {
         sharedPageProps: {
             name: string;
             auth: Auth;
-            sidebarOpen: boolean;
             /** Admin-only data; null for everyone else. */
             admin?: AdminSharedProps | null;
-            /** The page's language: 'ar' under /ar, else 'en' (admin, auth and dashboard are English). */
+            /** The page's language: 'ar' under /ar, else 'en' (the admin, sign-in and account pages are English). */
             locale: Locale;
             /** 'rtl' for Arabic, else 'ltr' (also set on <html dir> by the server). */
             dir: Direction;

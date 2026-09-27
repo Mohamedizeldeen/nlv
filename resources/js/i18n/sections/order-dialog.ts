@@ -54,6 +54,8 @@ export default defineMessages({
         checkOne: 'Check the highlighted field.',
         checkMany: 'Check the {count} highlighted fields.',
         sending: 'Sending…',
+        unreachable:
+            "We couldn't reach our server, so nothing was sent. Check your connection and send it again: what you typed is still here.",
 
         // Closing a form that has something typed in it.
         discardTitle: 'Discard this request?',
@@ -115,6 +117,8 @@ export default defineMessages({
         checkOne: 'راجع الحقل المحدَّد.',
         checkMany: 'راجع الحقول المحدَّدة، وعددها {count}.',
         sending: 'جارٍ الإرسال…',
+        unreachable:
+            'تعذّر الوصول إلى خادمنا، فلم يُرسَل الطلب. تحقّق من اتصالك ثم أرسله مرة أخرى، فما كتبته لا يزال هنا.',
 
         discardTitle: 'هل تريد إلغاء هذا الطلب؟',
         discardBody: 'لم يُرسَل شيء بعد، وسيضيع ما كتبته.',

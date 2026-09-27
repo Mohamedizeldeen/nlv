@@ -144,7 +144,7 @@ class OrderRequestTest extends TestCase
     {
         $this->withoutMiddleware(ThrottleRequests::class);
 
-        $sources = ['hero', 'navbar', 'mobile-menu', 'pricing-buy', 'pricing-lease', 'pricing-chain', 'lookbook', 'order-section', 'footer'];
+        $sources = ['hero', 'navbar', 'mobile-menu', 'pricing-buy', 'pricing-lease', 'pricing-chain', 'lookbook', 'order-section', 'footer', 'not-found'];
 
         foreach ($sources as $source) {
             $this->post(route('order-requests.store'), [...$this->payload(), 'source' => $source])
@@ -165,6 +165,17 @@ class OrderRequestTest extends TestCase
             'plan' => 'Choose how you would like to own the device.',
             'consent' => 'Please agree to be contacted about this order.',
         ]);
+    }
+
+    public function test_an_order_from_the_not_found_page_keeps_its_source(): void
+    {
+        $this->post(route('order-requests.store'), [...$this->payload(), 'source' => 'not-found'])
+            ->assertSessionHasNoErrors();
+
+        $lead = Lead::query()->sole();
+
+        $this->assertSame(LeadSource::NotFound, $lead->source);
+        $this->assertSame('Page not found (404)', $lead->source?->label());
     }
 
     public function test_an_unknown_source_is_dropped_rather_than_refused(): void

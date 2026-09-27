@@ -32,7 +32,7 @@ use Throwable;
  *
  * @phpstan-type Filters array{group: string|null, user: string|null, from: string|null, to: string|null, search: string|null}
  * @phpstan-type Subject array{type: string, id: int|null, label: string|null, href: string|null, exists: bool}
- * @phpstan-type Entry array{id: int, event: string, group: string, description: string, user: array{id: int, name: string, email: string}|null, actor: string, subject: Subject|null, changes: array<string, mixed>|null, properties: array<string, mixed>|null, ip: string|null, userAgent: string|null, createdAt: string, day: string, time: string}
+ * @phpstan-type Entry array{id: int, event: string, group: string, description: string, user: array{id: int, name: string, email: string}|null, actor: string, actorKind: 'user'|'deleted'|'visitor'|'system', causerName: string|null, subject: Subject|null, changes: array<string, mixed>|null, properties: array<string, mixed>|null, ip: string|null, userAgent: string|null, createdAt: string, day: string, time: string}
  */
 class ActivityController extends Controller
 {
@@ -65,6 +65,12 @@ class ActivityController extends Controller
      * (visitors' order requests, failed sign-ins, the console).
      */
     public const NO_USER = 'none';
+
+    /**
+     * The `user` filter value for entries by accounts deleted since (their
+     * user_id is gone, their name is kept in causer_name).
+     */
+    public const DELETED_USERS = 'deleted';
 
     /**
      * Where each kind of record is edited in the admin: model => route names
@@ -157,7 +163,7 @@ class ActivityController extends Controller
 
         return [
             'group' => is_string($group) && array_key_exists($group, self::GROUPS) ? $group : null,
-            'user' => is_string($user) && ($user === self::NO_USER || ctype_digit($user)) ? $user : null,
+            'user' => is_string($user) && (in_array($user, [self::NO_USER, self::DELETED_USERS], true) || ctype_digit($user)) ? $user : null,
             'from' => $this->day($request->query('from')),
             'to' => $this->day($request->query('to')),
             'search' => is_string($search) && trim($search) !== '' ? Str::limit(trim($search), 100, '') : null,
@@ -197,7 +203,9 @@ class ActivityController extends Controller
         }
 
         if ($filters['user'] === self::NO_USER) {
-            $query->whereNull('user_id');
+            $query->whereNull('user_id')->whereNull('causer_name');
+        } elseif ($filters['user'] === self::DELETED_USERS) {
+            $query->whereNull('user_id')->whereNotNull('causer_name');
         } elseif ($filters['user'] !== null) {
             $query->where('user_id', (int) $filters['user']);
         }
@@ -255,6 +263,9 @@ class ActivityController extends Controller
                 'email' => $entry->user->email,
             ],
             'actor' => $this->actor($entry),
+            'actorKind' => $this->actorKind($entry),
+            // The name when the entry was written (kept after the account is deleted).
+            'causerName' => $entry->causer_name,
             'subject' => $this->subject($entry),
             'changes' => is_array($changes) && $changes !== [] ? $changes : null,
             'properties' => $properties === [] ? null : $properties,
@@ -274,21 +285,40 @@ class ActivityController extends Controller
     }
 
     /**
-     * Who did it: the user's name, "Visitor" for requests without a signed-in
-     * user, "System" for the console and scheduled tasks (no request at all,
-     * or the placeholder one artisan runs with: 127.0.0.1, "Symfony").
+     * Who did it: the user's name ("Jane Doe (deleted account)" once the
+     * account is gone), "Visitor" for requests without a signed-in user,
+     * "System" for the console and scheduled tasks.
      */
     private function actor(ActivityLog $entry): string
     {
+        return $entry->causerLabel() ?? match ($this->actorKind($entry)) {
+            'system' => 'System',
+            default => 'Visitor',
+        };
+    }
+
+    /**
+     * What kind of actor did it: a user, a user whose account was deleted
+     * since, a visitor, or the system (no request at all, or the placeholder
+     * one artisan runs with: 127.0.0.1, "Symfony").
+     *
+     * @return 'user'|'deleted'|'visitor'|'system'
+     */
+    private function actorKind(ActivityLog $entry): string
+    {
         if ($entry->user !== null) {
-            return $entry->user->name;
+            return 'user';
+        }
+
+        if ($entry->causedByDeletedAccount()) {
+            return 'deleted';
         }
 
         $console = $entry->ip_address === null
             || $entry->user_agent === 'Symfony'
             || ($entry->properties['via'] ?? null) === 'console';
 
-        return $console ? 'System' : 'Visitor';
+        return $console ? 'system' : 'visitor';
     }
 
     /**
@@ -396,7 +426,8 @@ class ActivityController extends Controller
 
     /**
      * The user filter's options: everyone who appears in the log, by name,
-     * then the entries without a user.
+     * then deleted accounts (when the log has any), then the entries
+     * without a user.
      *
      * @return list<array{value: string, label: string}>
      */
@@ -410,7 +441,11 @@ class ActivityController extends Controller
             ->map(fn (User $user): array => ['value' => (string) $user->id, 'label' => $user->name])
             ->all();
 
-        return [...array_values($users), ['value' => self::NO_USER, 'label' => 'Visitors and system']];
+        $deleted = ActivityLog::query()->whereNull('user_id')->whereNotNull('causer_name')->exists()
+            ? [['value' => self::DELETED_USERS, 'label' => 'Deleted accounts']]
+            : [];
+
+        return [...array_values($users), ...$deleted, ['value' => self::NO_USER, 'label' => 'Visitors and system']];
     }
 
     /**

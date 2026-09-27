@@ -2,10 +2,11 @@ import type { UrlMethodPair } from '@inertiajs/core';
 import { router } from '@inertiajs/react';
 import { usePasskeyVerify } from '@laravel/passkeys/react';
 import { KeyRound } from 'lucide-react';
-import InputError from '@/components/input-error';
-import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
+import { button } from '@/components/admin/button';
+import { FieldError } from '@/components/admin/field';
 import { Spinner } from '@/components/ui/spinner';
+import { AuthDivider } from '@/layouts/auth-layout';
+import { dashboard } from '@/routes/admin';
 
 type Props = {
     routes?: {
@@ -17,6 +18,10 @@ type Props = {
     separator?: string;
 };
 
+/**
+ * "Log in with a passkey" (or confirm with one) above the password form,
+ * in the sign-in pages' glass. Hidden where the browser has no passkeys.
+ */
 export default function PasskeyVerify({
     routes,
     label,
@@ -31,7 +36,7 @@ export default function PasskeyVerify({
             },
         }),
         onSuccess: (response) => {
-            router.visit(response.redirect ?? '/dashboard');
+            router.visit(response.redirect ?? dashboard.url());
         },
     });
 
@@ -42,33 +47,27 @@ export default function PasskeyVerify({
     return (
         <>
             <div className="grid gap-2">
-                <Button
+                <button
                     type="button"
-                    variant="outline"
-                    className="w-full"
+                    className={button({
+                        variant: 'glass',
+                        size: 'md',
+                        className: 'w-full',
+                    })}
                     onClick={verify}
                     disabled={isLoading}
                 >
-                    {isLoading ? <Spinner /> : <KeyRound className="h-4 w-4" />}
+                    {isLoading ? <Spinner /> : <KeyRound aria-hidden />}
                     {isLoading
-                        ? (loadingLabel ?? 'Authenticating...')
-                        : (label ?? 'Sign in with a passkey')}
-                </Button>
-                {error && (
-                    <InputError message={error} className="text-center" />
-                )}
+                        ? (loadingLabel ?? 'Waiting for your passkey…')
+                        : (label ?? 'Log in with a passkey')}
+                </button>
+                {error ? (
+                    <FieldError className="text-center">{error}</FieldError>
+                ) : null}
             </div>
 
-            <div className="relative my-6">
-                <div className="absolute inset-0 flex items-center">
-                    <Separator className="w-full" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-background px-2 text-muted-foreground">
-                        {separator ?? 'Or continue with email'}
-                    </span>
-                </div>
-            </div>
+            <AuthDivider>{separator ?? 'or with your email'}</AuthDivider>
         </>
     );
 }

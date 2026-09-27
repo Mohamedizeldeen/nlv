@@ -99,11 +99,27 @@ function EntryRow({
                     <span
                         className={cn(
                             'min-w-0 truncate pt-px text-[13px] md:order-3 md:text-right',
-                            entry.user ? 'text-mist' : 'text-smoke',
+                            entry.actorKind === 'user' ||
+                                entry.actorKind === 'deleted'
+                                ? 'text-mist'
+                                : 'text-smoke',
                             actorInText && 'max-md:hidden',
                         )}
                     >
-                        {entry.actor}
+                        {entry.actorKind === 'deleted' ? (
+                            // md+: stacked in the narrow column, so the
+                            // "deleted account" part is never cut off.
+                            <>
+                                <span className="md:block md:truncate">
+                                    {entry.causerName}
+                                </span>{' '}
+                                <span className="text-smoke md:block md:truncate md:text-[12px]">
+                                    (deleted account)
+                                </span>
+                            </>
+                        ) : (
+                            entry.actor
+                        )}
                     </span>
                 </button>
             </h4>

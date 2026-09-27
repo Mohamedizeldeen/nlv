@@ -169,7 +169,7 @@ class DashboardTest extends TestCase
     public function test_non_admins_receive_a_null_admin_prop(): void
     {
         $this->actingAs(User::factory()->create())
-            ->get(route('dashboard'))
+            ->get(route('profile.edit'))
             ->assertInertia(fn (Assert $page) => $page
                 ->where('admin', null),
             );

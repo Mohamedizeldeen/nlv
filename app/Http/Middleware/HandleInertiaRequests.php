@@ -44,7 +44,6 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
             ],
-            'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             'admin' => fn () => $this->admin($request),
             // Resolved when the page renders: the /ar group's SetLocale runs
             // after this middleware has shared its props.

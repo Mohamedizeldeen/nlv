@@ -1,5 +1,6 @@
 // TEMPORARY dev-only harness: http://localhost:5173/landing-preview/index.html?s=hero,pricing
-// Add &lang=ar for the Arabic page (right-to-left, Arabic fixture, Arabic static strings).
+// Add &lang=ar for the Arabic page (right-to-left, Arabic fixture, Arabic static strings),
+// and &untranslated for the Arabic page before the admin fills in the records' Arabic.
 import { Component, StrictMode, Suspense, lazy } from 'react';
 import type { ComponentType, ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -28,8 +29,41 @@ const fixtures = import.meta.glob<unknown>('./fixture*.json', {
 
 const params = new URLSearchParams(location.search);
 const locale: Locale = params.get('lang') === 'ar' ? 'ar' : 'en';
-const landing = (fixtures[`./fixture.${locale}.json`] ??
-    fixtures['./fixture.json']) as LandingData;
+const english = fixtures['./fixture.json'] as LandingData;
+const translated = (fixtures[`./fixture.${locale}.json`] ??
+    english) as LandingData;
+
+/*
+ * &untranslated: the Arabic page when no record has its Arabic filled in.
+ * The server then sends each record's English (stories, looks, categories,
+ * plans, questions, page titles), while the copy settings keep their
+ * Arabic defaults and coordinates their Arabic compass points.
+ */
+function untranslated(arabic: LandingData): LandingData {
+    return {
+        ...arabic,
+        stories: english.stories.map((story, index) => ({
+            ...story,
+            coordinates:
+                arabic.stories[index]?.coordinates ?? story.coordinates,
+        })),
+        lookbook: english.lookbook,
+        pricing: {
+            ...arabic.pricing,
+            plans: english.pricing.plans,
+            faqs: english.pricing.faqs,
+        },
+        pages: english.pages.map((page) => ({
+            ...page,
+            url: `/ar${page.url}`,
+        })),
+    };
+}
+
+const landing =
+    locale === 'ar' && params.has('untranslated')
+        ? untranslated(translated)
+        : translated;
 
 // What the server renders on the real pages: <html lang="ar" dir="rtl">.
 document.documentElement.lang = locale;

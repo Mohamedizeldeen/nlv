@@ -34,8 +34,18 @@ class Activity
     private static bool $modelLogging = true;
 
     /**
+     * Longest acting user's name kept on an entry (activity_logs.causer_name).
+     */
+    public const MAX_CAUSER_NAME_LENGTH = 120;
+
+    /**
      * Record an activity entry. The acting user (the signed-in user unless one is
      * given), the IP address and the user agent are filled in automatically.
+     *
+     * The acting user's name is kept with the entry, so the log still says who
+     * did it once that account is deleted (user_id then becomes null). A user
+     * who is already deleted (deleting their own account) is recorded by name
+     * only.
      *
      * @param  array<string, mixed>  $properties
      */
@@ -53,10 +63,14 @@ class Activity
         $request = ! $console && app()->bound('request') ? app(Request::class) : null;
         $causer ??= Auth::user();
         $userAgent = $request?->userAgent();
+        $deleted = $causer instanceof Model && ! $causer->exists;
+        $name = $causer instanceof Model ? $causer->getAttribute('name') : null;
+        $name = is_string($name) ? trim($name) : '';
 
         $log = new ActivityLog;
         $log->forceFill([
-            'user_id' => $causer?->getAuthIdentifier(),
+            'user_id' => $deleted ? null : $causer?->getAuthIdentifier(),
+            'causer_name' => $causer === null || $name === '' ? null : self::truncate($name, self::MAX_CAUSER_NAME_LENGTH),
             'event' => mb_substr($event, 0, 60),
             'subject_type' => $subject?->getMorphClass(),
             'subject_id' => $subject?->getKey(),

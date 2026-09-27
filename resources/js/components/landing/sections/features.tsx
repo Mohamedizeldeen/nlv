@@ -139,7 +139,10 @@ function eyewearRow(t: Translate): Row & { metric: Metric } {
 }
 
 const STORE = {
-    /** The store's wordmark in the mockups: Latin artwork on both pages. */
+    /**
+     * The store's wordmark in the mockups: Latin artwork on both pages, set
+     * with lang="en" so the Arabic page keeps its tracking.
+     */
     wordmark: 'Maison Rimal',
     /** Path of the store's page in the cloud app (a URL: stays Latin). */
     slug: 'maison-rimal',
@@ -403,11 +406,17 @@ function RailScreen() {
             className="absolute inset-0 flex flex-col px-[5.5%] pt-[5%] pb-[5.5%] text-bone"
         >
             <div className="flex shrink-0 items-center justify-between pb-[3.6cqw]">
-                <span className="font-display text-[length:3.6cqw] tracking-[0.32em] uppercase">
+                <span
+                    lang="en"
+                    className="font-display text-[length:3.6cqw] tracking-[0.32em] uppercase"
+                >
                     {STORE.wordmark}
                 </span>
                 {/* The UI's languages (product codes); the page's own is lit. */}
-                <span className="flex gap-[2.4cqw] text-[length:3.2cqw] font-medium tracking-[0.14em]">
+                <span
+                    lang="en"
+                    className="flex gap-[2.4cqw] text-[length:3.2cqw] font-medium tracking-[0.14em]"
+                >
                     {(['en', 'ar'] as const).map((code) => (
                         <span
                             key={code}
@@ -639,7 +648,10 @@ function CloudScreen() {
             className="flex flex-col px-[calc(var(--u)*4.5)] pt-[calc(var(--u)*3.2)] pb-[calc(var(--u)*4)] text-bone [--u:1.42cqw] @md:[--u:1cqw]"
         >
             <div className="flex items-center gap-[calc(var(--u)*3.4)] border-b border-white/10 pb-[calc(var(--u)*2.6)]">
-                <span className="font-display text-[length:calc(var(--u)*2.5)] tracking-[0.3em] whitespace-nowrap uppercase">
+                <span
+                    lang="en"
+                    className="font-display text-[length:calc(var(--u)*2.5)] tracking-[0.3em] whitespace-nowrap uppercase"
+                >
                     {STORE.wordmark}
                 </span>
                 <span className="flex gap-[calc(var(--u)*2.6)] text-[length:calc(var(--u)*2.2)] text-smoke">

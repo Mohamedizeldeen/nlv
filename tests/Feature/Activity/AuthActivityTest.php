@@ -78,9 +78,11 @@ class AuthActivityTest extends TestCase
 
         Notification::fake();
 
-        $user = User::factory()->create();
+        $user = User::factory()->create(['name' => 'Dev Admin']);
 
         $this->post(route('password.email'), ['email' => $user->email]);
+
+        $before = (int) ActivityLog::query()->max('id');
 
         Notification::assertSentTo($user, ResetPassword::class, function (ResetPassword $notification) use ($user) {
             $this->post(route('password.update'), [
@@ -93,10 +95,19 @@ class AuthActivityTest extends TestCase
             return true;
         });
 
-        $log = $this->latestLog('auth.password_reset');
+        // One entry, credited to the user: no automatic user.updated with a
+        // hidden password change done by a "Visitor" as well.
+        $entries = ActivityLog::query()->where('id', '>', $before)->get();
+
+        $this->assertSame(['auth.password_reset'], $entries->pluck('event')->all());
+
+        $log = $entries->sole();
 
         $this->assertTrue($log->subject?->is($user));
-        $this->assertSame(['[redacted]', '[redacted]'], $this->latestLog('user.updated')->properties['changes']['password']);
+        $this->assertSame($user->id, $log->user_id);
+        $this->assertSame('Dev Admin', $log->causer_name);
+        $this->assertSame('Dev Admin reset their password', $log->description);
+        $this->assertTrue(password_verify('new-password-123', (string) $user->fresh()?->password));
     }
 
     public function test_two_factor_changes_are_logged(): void

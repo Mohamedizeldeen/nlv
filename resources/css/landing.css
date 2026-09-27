@@ -44,6 +44,7 @@
     --animate-scan: scan 3.6s ease-in-out infinite;
     --animate-marquee: marquee 40s linear infinite;
     --animate-pulse-ring: pulse-ring 2.4s ease-out infinite;
+    --animate-sway: sway 7s ease-in-out infinite;
 
     @keyframes drift-a {
         0%,
@@ -109,6 +110,17 @@
         100% {
             transform: scale(2.4);
             opacity: 0;
+        }
+    }
+
+    /* A hanger swinging gently on its hook (the not-found page's rail). */
+    @keyframes sway {
+        0%,
+        100% {
+            rotate: -2.5deg;
+        }
+        50% {
+            rotate: 2.5deg;
         }
     }
 }

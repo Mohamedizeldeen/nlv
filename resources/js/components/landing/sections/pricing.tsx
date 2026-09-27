@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import type { LandingPlan } from '@/types/landing';
 import { Accent } from '../accent';
 import { hasSection, useContent, useLanding } from '../landing-data';
+import { Managed, englishRun } from '../managed';
 import { useOrderDialog } from '../order-dialog';
 import { Container, cta, Glow, Reveal, SectionHeader } from '../primitives';
 
@@ -73,11 +74,14 @@ function Rolling({ text, className }: { text: string; className?: string }) {
 
     return (
         // One inline-block per character: without dir="ltr" an Arabic line
-        // would lay them out right to left ("009,3" for 3,900).
+        // would lay them out right to left ("009,3" for 3,900). Figures and
+        // currency codes are Latin artwork: lang="en" keeps their tracking
+        // on the Arabic page.
         <span
             ref={ref}
             aria-hidden
             dir="ltr"
+            lang="en"
             className={cn('inline-block whitespace-nowrap', className)}
         >
             {Array.from(text).map((char, index) => (
@@ -290,7 +294,7 @@ function Ledger({
     detail: LandingPlan['detail'];
     currency: string;
 }) {
-    const { t, formatNumber } = useI18n();
+    const { locale, t, formatNumber } = useI18n();
     const amount = detail.prices?.[currency];
     const money = amount !== undefined;
     const figure = money ? formatNumber(amount) : (detail.value ?? '');
@@ -303,7 +307,10 @@ function Ledger({
         // Label and value share a line, except in the narrow three-card
         // row at lg, where every card stacks them so the buttons stay level.
         <div className="mt-6 flex items-baseline justify-between gap-4 border-t border-white/10 pt-4 lg:flex-col lg:items-start lg:gap-2.5 xl:flex-row xl:items-baseline xl:gap-4">
-            <dt className="text-kicker font-medium text-smoke uppercase">
+            <dt
+                {...englishRun(locale, detail.label ?? '')}
+                className="text-kicker font-medium text-smoke uppercase"
+            >
                 {detail.label}
             </dt>
             <dd className="flex items-baseline gap-1.5 text-[14px] text-mist">
@@ -322,7 +329,11 @@ function Ledger({
                     text={figure}
                     className="font-display text-[1.625rem] leading-none font-medium text-bone tabular-nums rtl:-order-1"
                 />
-                {detail.caption ? <span>{detail.caption}</span> : null}
+                {detail.caption ? (
+                    <span>
+                        <Managed text={detail.caption} />
+                    </span>
+                ) : null}
             </dd>
         </div>
     );
@@ -357,6 +368,7 @@ function Feature({ text }: { text: string }) {
 
 /** One plan. The featured one is drawn as the arched fitting-room mirror. */
 function PlanCard({ plan, currency }: { plan: LandingPlan; currency: string }) {
+    const { locale } = useI18n();
     const order = useOrderDialog();
     const featured = plan.featured;
     const titleId = `pricing-plan-${plan.key}`;
@@ -413,12 +425,15 @@ function PlanCard({ plan, currency }: { plan: LandingPlan; currency: string }) {
                     id={titleId}
                     className="font-display text-[2.125rem] leading-none font-medium tracking-[-0.015em] text-bone"
                 >
-                    {plan.name}
+                    <Managed text={plan.name} />
                 </h3>
                 {featured && (plan.badge || plan.badgeNote) ? (
                     <p className="absolute inset-x-0 top-[calc(var(--arch)*0.46)] flex flex-col items-center gap-1.5 text-center">
                         {plan.badge ? (
-                            <span className="flex items-center gap-2.5 text-kicker font-medium text-mint uppercase">
+                            <span
+                                {...englishRun(locale, plan.badge)}
+                                className="flex items-center gap-2.5 text-kicker font-medium text-mint uppercase"
+                            >
                                 <span
                                     aria-hidden
                                     className="h-px w-5 bg-mint/50"
@@ -432,13 +447,13 @@ function PlanCard({ plan, currency }: { plan: LandingPlan; currency: string }) {
                         ) : null}
                         {plan.badgeNote ? (
                             <span className="text-[12px] text-mist">
-                                {plan.badgeNote}
+                                <Managed text={plan.badgeNote} />
                             </span>
                         ) : null}
                     </p>
                 ) : null}
                 <p className="mt-3 text-[15px] leading-snug text-pretty text-mist lg:min-h-[2lh]">
-                    {plan.blurb}
+                    <Managed text={plan.blurb} />
                 </p>
 
                 <Price
@@ -452,7 +467,7 @@ function PlanCard({ plan, currency }: { plan: LandingPlan; currency: string }) {
                     className="mt-7"
                 />
                 <p aria-hidden className="mt-3 text-[13px] text-mist/90">
-                    {plan.priceCaption}
+                    <Managed text={plan.priceCaption} />
                 </p>
 
                 <dl>
@@ -472,7 +487,7 @@ function PlanCard({ plan, currency }: { plan: LandingPlan; currency: string }) {
                         'mt-6 w-full',
                     )}
                 >
-                    {plan.ctaLabel}
+                    <Managed text={plan.ctaLabel} />
                     {featured ? (
                         <ArrowRight
                             aria-hidden
@@ -484,7 +499,10 @@ function PlanCard({ plan, currency }: { plan: LandingPlan; currency: string }) {
 
             <div className="mt-8 border-t border-white/10 md:mt-0 md:border-t-0 lg:mt-8 lg:border-t">
                 {plan.featuresHeading ? (
-                    <p className="border-b border-white/[0.07] py-3 text-kicker font-medium text-mint uppercase">
+                    <p
+                        {...englishRun(locale, plan.featuresHeading)}
+                        className="border-b border-white/[0.07] py-3 text-kicker font-medium text-mint uppercase rtl:text-right"
+                    >
                         {plan.featuresHeading}
                     </p>
                 ) : null}
@@ -500,7 +518,9 @@ function PlanCard({ plan, currency }: { plan: LandingPlan; currency: string }) {
                                 className="mt-[3px] size-3.5 shrink-0 text-mint"
                             />
                             <span>
-                                <Feature text={feature} />
+                                <Managed text={feature}>
+                                    <Feature text={feature} />
+                                </Managed>
                             </span>
                         </li>
                     ))}
@@ -666,10 +686,10 @@ function Plans() {
                                     className="border-t border-white/10 pt-5"
                                 >
                                     <dt className="text-[16px] font-medium text-bone">
-                                        {item.question}
+                                        <Managed text={item.question} />
                                     </dt>
                                     <dd className="mt-2.5 text-[15px] leading-relaxed text-pretty text-mist">
-                                        {item.answer}
+                                        <Managed text={item.answer} />
                                     </dd>
                                 </div>
                             ))}

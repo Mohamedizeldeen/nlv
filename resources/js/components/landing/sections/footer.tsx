@@ -8,7 +8,13 @@ import { Accent } from '../accent';
 import { BRAND } from '../brand';
 import { LanguageSwitch } from '../language-switch';
 import { hasSection, useContent, useLanding } from '../landing-data';
-import { useOrderDialog } from '../order-dialog';
+import { Managed } from '../managed';
+import {
+    telHref,
+    useOrderDialog,
+    useTalkNumbers,
+    whatsAppHref,
+} from '../order-dialog';
 import { Container, Wordmark } from '../primitives';
 import { useSectionHref } from './navbar';
 import type { SectionBase } from './navbar';
@@ -16,8 +22,10 @@ import type { SectionBase } from './navbar';
 /*
  * Colophon: a statement, a print-style index of links under hairlines, and
  * the tagline set large in faint italic as the page's last word. The copy,
- * the contact email, the social profiles and the Company and Legal pages
- * all come from the admin. The bottom line carries the language switch.
+ * the contact email, phone, WhatsApp and address, the social profiles and
+ * the Company and Legal pages all come from the admin; a contact line or a
+ * profile left empty is not shown. The bottom line carries the language
+ * switch.
  * On the Arabic page the grid mirrors; Amiri gets taller lines and, having
  * no italic, sets the tagline upright.
  */
@@ -183,6 +191,8 @@ export default function Footer({ base = '' }: { base?: SectionBase }) {
                         </p>
                         <p className="mt-4 text-sm text-smoke">{companyLine}</p>
 
+                        <ContactLines />
+
                         {socials.length ? (
                             <ul className="-ms-2.5 mt-8 flex items-center gap-1">
                                 {socials.map((social) => (
@@ -250,7 +260,9 @@ export default function Footer({ base = '' }: { base?: SectionBase }) {
                                                     href={link.href}
                                                     className={linkClass}
                                                 >
-                                                    {link.label}
+                                                    <Managed
+                                                        text={link.label}
+                                                    />
                                                 </Link>
                                             ) : (
                                                 <a
@@ -290,5 +302,85 @@ export default function Footer({ base = '' }: { base?: SectionBase }) {
                 </div>
             </Container>
         </footer>
+    );
+}
+
+/**
+ * Phone, WhatsApp and office address, set like the index opposite: a small
+ * spaced-capitals label, then the line. On phones each label sits over its
+ * line, the two numbers side by side and the address full width; from
+ * `sm` the labels move beside them. Numbers read left to right on both
+ * pages; each line hides while its setting is empty.
+ */
+function ContactLines() {
+    const { t } = useI18n();
+    const { phone, whatsapp } = useTalkNumbers();
+    const address = useContent('contact.address').trim();
+    const numberClass = cn(linkClass, 'whitespace-nowrap bidi-ltr');
+
+    const lines: { label: string; value: ReactNode; wide?: boolean }[] = [];
+
+    if (phone) {
+        lines.push({
+            label: t('footer.phone'),
+            value: (
+                <a href={telHref(phone)} className={numberClass}>
+                    {phone}
+                </a>
+            ),
+        });
+    }
+
+    if (whatsapp) {
+        lines.push({
+            label: t('footer.whatsapp'),
+            value: (
+                <a
+                    href={whatsAppHref(whatsapp)}
+                    target="_blank"
+                    rel="noopener"
+                    className={numberClass}
+                >
+                    {whatsapp}
+                </a>
+            ),
+        });
+    }
+
+    if (address) {
+        lines.push({
+            label: t('footer.address'),
+            // Its own direction: an English address on the Arabic page
+            // keeps its punctuation in place.
+            value: <bdi className="whitespace-pre-line">{address}</bdi>,
+            wide: true,
+        });
+    }
+
+    if (lines.length === 0) {
+        return null;
+    }
+
+    return (
+        <address className="mt-8 max-w-[26rem] not-italic">
+            <dl className="grid grid-cols-2 gap-x-6 gap-y-6 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-baseline sm:gap-y-3">
+                {lines.map((line) => (
+                    <div
+                        key={line.label}
+                        className={cn(
+                            'min-w-0 sm:contents',
+                            line.wide && 'col-span-2',
+                        )}
+                    >
+                        <dt className="text-kicker font-medium text-smoke uppercase">
+                            {line.label}
+                        </dt>
+                        <dd className="mt-2 text-[15px] leading-relaxed text-pretty text-mist sm:mt-0">
+                            {line.value}
+                        </dd>
+                    </div>
+                ))}
+            </dl>
+        </address>
     );
 }

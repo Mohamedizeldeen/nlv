@@ -35,6 +35,8 @@ import { cn } from '@/lib/utils';
 import type { OrderRequestFlash, PlanKey } from '@/types/landing';
 import { Accent } from './accent';
 import { useContent, useLanding } from './landing-data';
+import { Managed } from './managed';
+import { messageParts } from './message-parts';
 import { Glow, cta } from './primitives';
 
 /*
@@ -45,6 +47,8 @@ import { Glow, cta } from './primitives';
  * <LandingDataProvider> above <OrderDialogProvider> for its copy.
  * It posts the page's language (`locale`): the server answers in it and
  * stores it on the lead. Static strings: i18n/sections/order-dialog.ts.
+ * Also here: the phone and WhatsApp links (TalkLine, telHref, whatsAppHref)
+ * that the thank-you view, the order section and the footer share.
  */
 
 /** The CTA that opened the form; mirrors App\Enums\LeadSource. */
@@ -57,7 +61,8 @@ export type LeadSource =
     | 'pricing-chain'
     | 'lookbook'
     | 'order-section'
-    | 'footer';
+    | 'footer'
+    | 'not-found';
 
 /** How the visitor would like to own the device; mirrors App\Enums\LeadPlan. */
 export type OrderPlan = PlanKey | 'unsure';
@@ -170,6 +175,84 @@ export function OrderDialogProvider({ children }: { children: ReactNode }) {
                 />
             ) : null}
         </OrderDialogContext>
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Phone and WhatsApp (Site content: contact.phone, contact.whatsapp). Shown
+// as the admin typed them, as isolated left-to-right runs, only when set.
+
+/** A `tel:` link: "+971 4 123 4567" dials +97141234567. */
+export function telHref(number: string): string {
+    return `tel:${number.replace(/[^\d+]/g, '')}`;
+}
+
+/**
+ * A WhatsApp chat: https://wa.me/ takes the international number as digits
+ * alone, without the "+" or a leading "00".
+ */
+export function whatsAppHref(number: string): string {
+    const digits = number.replace(/\D/g, '');
+
+    return `https://wa.me/${number.trim().startsWith('00') ? digits.slice(2) : digits}`;
+}
+
+/** The two numbers, trimmed; '' when the admin left one empty. */
+export function useTalkNumbers(): { phone: string; whatsapp: string } {
+    return {
+        phone: useContent('contact.phone').trim(),
+        whatsapp: useContent('contact.whatsapp').trim(),
+    };
+}
+
+const talkLinkClass =
+    'whitespace-nowrap text-bone underline decoration-white/25 underline-offset-4 transition-colors bidi-ltr hover:decoration-mint focus-visible:rounded-[4px] focus-visible:ring-2 focus-visible:ring-mint/70 focus-visible:outline-none';
+
+/**
+ * "Prefer to talk? Call … or WhatsApp …", in the voice of the "Prefer
+ * email?" line beside it. Says only what is set; renders nothing while
+ * neither number is.
+ */
+export function TalkLine({ className }: { className?: string }) {
+    const { t } = useI18n();
+    const { phone, whatsapp } = useTalkNumbers();
+
+    if (!phone && !whatsapp) {
+        return null;
+    }
+
+    const call = (
+        <a href={telHref(phone)} className={talkLinkClass}>
+            {phone}
+        </a>
+    );
+    const chat = (
+        <a
+            href={whatsAppHref(whatsapp)}
+            target="_blank"
+            rel="noopener"
+            className={talkLinkClass}
+        >
+            {whatsapp}
+        </a>
+    );
+
+    return (
+        <p
+            className={cn(
+                'text-[14px] leading-relaxed text-balance text-smoke',
+                className,
+            )}
+        >
+            {phone && whatsapp
+                ? messageParts(t, 'common.talkBoth', {
+                      phone: call,
+                      whatsapp: chat,
+                  })
+                : phone
+                  ? messageParts(t, 'common.talkPhone', { phone: call })
+                  : messageParts(t, 'common.talkWhatsApp', { whatsapp: chat })}
+        </p>
     );
 }
 
@@ -392,6 +475,8 @@ function OrderDialog({
     const [state, setState] = useState<'open' | 'closed'>('closed');
     const [confirming, setConfirming] = useState(false);
     const [sent, setSent] = useState<OrderRequestFlash | null>(null);
+    // The request never reached the server (offline, dropped connection).
+    const [unreachable, setUnreachable] = useState(false);
 
     const root = useRef<HTMLDivElement>(null);
     const panel = useRef<HTMLDivElement>(null);
@@ -644,9 +729,17 @@ function OrderDialog({
             return;
         }
 
+        setUnreachable(false);
         form.submit(store(), {
             preserveScroll: true,
             preserveState: true,
+            // Keep what was typed and say so, rather than failing silently.
+            onNetworkError: () => {
+                setUnreachable(true);
+                scroller.current?.scrollTo({ top: 0, behavior: 'smooth' });
+
+                return false;
+            },
             onFlash: (flash) => {
                 const result = flash.orderRequest as
                     | OrderRequestFlash
@@ -781,18 +874,23 @@ function OrderDialog({
                                 ]}
                             />
 
-                            {sent.reference && contactEmail ? (
-                                <p className="mt-5 text-[14px] leading-relaxed text-smoke">
-                                    {edgeSpace(quoteBefore, 'end')}
-                                    <a
-                                        href={`mailto:${contactEmail}`}
-                                        className="text-bone underline decoration-white/25 underline-offset-4 transition-colors hover:decoration-mint focus-visible:rounded-[4px] focus-visible:ring-2 focus-visible:ring-mint/70 focus-visible:outline-none rtl:bidi-ltr"
-                                    >
-                                        {contactEmail}
-                                    </a>
-                                    {quoteAfter}
-                                </p>
-                            ) : null}
+                            {/* How to reach the team: the email (with the
+                                reference to quote), then phone and WhatsApp. */}
+                            <div className="mt-5 flex flex-col gap-2 empty:hidden">
+                                {sent.reference && contactEmail ? (
+                                    <p className="text-[14px] leading-relaxed text-smoke">
+                                        {edgeSpace(quoteBefore, 'end')}
+                                        <a
+                                            href={`mailto:${contactEmail}`}
+                                            className="text-bone underline decoration-white/25 underline-offset-4 transition-colors hover:decoration-mint focus-visible:rounded-[4px] focus-visible:ring-2 focus-visible:ring-mint/70 focus-visible:outline-none rtl:bidi-ltr"
+                                        >
+                                            {contactEmail}
+                                        </a>
+                                        {quoteAfter}
+                                    </p>
+                                ) : null}
+                                <TalkLine />
+                            </div>
                         </div>
 
                         <div className="border-t border-white/10 bg-[oklch(0.16_0.016_200/0.5)] px-6 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:flex sm:justify-end sm:px-10 sm:py-5">
@@ -832,12 +930,14 @@ function OrderDialog({
                                 {lede}
                             </p>
 
-                            {errors.form ? (
+                            {errors.form || unreachable ? (
                                 <p
                                     role="alert"
                                     className="mt-7 rounded-[16px] bg-coral/[0.08] px-4 py-3.5 text-[14px] leading-snug text-bone ring-1 ring-coral/40 ring-inset"
                                 >
-                                    {errors.form}
+                                    {unreachable
+                                        ? t('order-dialog.unreachable')
+                                        : errors.form}
                                 </p>
                             ) : null}
 
@@ -1082,10 +1182,14 @@ function OrderDialog({
                                                 </span>
                                                 <span className="min-w-0">
                                                     <span className="block text-[15px] leading-tight font-medium text-bone">
-                                                        {option.name}
+                                                        <Managed
+                                                            text={option.name}
+                                                        />
                                                     </span>
                                                     <span className="mt-1.5 block text-[13px] leading-snug text-pretty text-mist">
-                                                        {option.blurb}
+                                                        <Managed
+                                                            text={option.blurb}
+                                                        />
                                                     </span>
                                                 </span>
                                             </label>
@@ -1200,7 +1304,9 @@ function OrderDialog({
                                                     className="mt-1 block w-fit text-[13px] text-smoke underline decoration-white/20 underline-offset-4 transition-colors hover:text-bone hover:decoration-mint focus-visible:rounded-[4px] focus-visible:ring-2 focus-visible:ring-mint/70 focus-visible:outline-none"
                                                 >
                                                     {privacyBefore}
-                                                    {privacy.title}
+                                                    <Managed
+                                                        text={privacy.title}
+                                                    />
                                                     {edgeSpace(
                                                         privacyAfter,
                                                         'start',

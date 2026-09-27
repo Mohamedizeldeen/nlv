@@ -7,7 +7,9 @@ use App\Models\Look;
 use App\Models\User;
 use App\Support\Activity;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
@@ -100,6 +102,52 @@ class NotFoundPageTest extends TestCase
         $response = $this->actingAs($member)->get("/admin/looks/{$id}/edit");
 
         $this->assertContains($response->getStatusCode(), [403, 404]);
+        $this->assertStringNotContainsString('admin/not-found', (string) $response->getContent());
+    }
+
+    /**
+     * A signed-in browser's session cookie for `$user`, the way a real visit
+     * carries it (actingAs() would skip the session entirely).
+     */
+    private function sessionCookieFor(User $user): string
+    {
+        $id = Str::random(40);
+
+        app('session')->driver()->getHandler()->write($id, (string) json_encode([
+            '_token' => Str::random(40),
+            Auth::guard('web')->getName() => $user->id,
+        ]));
+
+        return $id;
+    }
+
+    public function test_a_mistyped_admin_address_gets_the_admin_page_for_admins(): void
+    {
+        // No route matches, so no middleware has started the session: the
+        // page must still know that a signed-in admin is asking.
+        $admin = $this->admin();
+
+        $this->withCookie((string) config('session.cookie'), $this->sessionCookieFor($admin))
+            ->get('/admin/no-such-module')
+            ->assertNotFound()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('admin/not-found')
+                ->where('path', '/admin/no-such-module')
+                ->where('auth.user.id', $admin->id)
+                ->where('admin.newLeads', 0),
+            );
+    }
+
+    public function test_a_mistyped_admin_address_stays_plain_for_guests_and_other_accounts(): void
+    {
+        $guest = $this->get('/admin/no-such-module')->assertNotFound();
+        $this->assertStringNotContainsString('admin/not-found', (string) $guest->getContent());
+
+        $member = Activity::withoutModelLogging(fn () => User::factory()->create());
+        $response = $this->withCookie((string) config('session.cookie'), $this->sessionCookieFor($member))
+            ->get('/admin/no-such-module')
+            ->assertNotFound();
+
         $this->assertStringNotContainsString('admin/not-found', (string) $response->getContent());
     }
 

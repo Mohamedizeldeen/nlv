@@ -672,7 +672,7 @@ export default function PlanEdit({
                                         hint="A short line under the badge."
                                         placeholder={{
                                             en: 'by 6 in 10 new stores',
-                                            ar: 'اختيار 6 من كل 10 متاجر جديدة',
+                                            ar: 'تختاره 6 من كل 10 متاجر جديدة',
                                         }}
                                         inputProps={{ autoComplete: 'off' }}
                                     />

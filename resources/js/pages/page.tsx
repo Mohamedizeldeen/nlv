@@ -18,11 +18,9 @@ import Footer from '@/components/landing/sections/footer';
 import Navbar from '@/components/landing/sections/navbar';
 import { useDocumentLocale, useI18n } from '@/hooks/use-i18n';
 import type { MessageKey } from '@/i18n';
-import { dashboard, login } from '@/routes';
+import { login } from '@/routes';
+import { dashboard as adminDashboard } from '@/routes/admin';
 import type { ContentPageProps, LandingPageLink } from '@/types/landing';
-/* @chisel-registration */
-import { register } from '@/routes';
-/* @end-chisel-registration */
 
 /*
  * A content page (About, Privacy, Terms...) at /pages/{slug} and, in
@@ -137,10 +135,7 @@ export default function ContentPage({ page, landing }: ContentPageProps) {
     const links: LandingLinks = {
         signedIn: Boolean(auth.user),
         signIn: login(),
-        dashboard: dashboard(),
-        /* @chisel-registration */
-        signUp: register(),
-        /* @end-chisel-registration */
+        admin: adminDashboard(),
     };
 
     // Same always-dark page as the landing, smooth scrolling included.

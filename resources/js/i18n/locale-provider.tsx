@@ -8,9 +8,11 @@ export type LocaleOverride = {
 };
 
 /**
- * Pages never need this: `useI18n()` reads the language from the shared
+ * Pages rarely need this: `useI18n()` reads the language from the shared
  * Inertia props. It is for renders outside an Inertia page, like the
- * landing-preview harness (`?lang=ar`).
+ * landing-preview harness (`?lang=ar`), and for the not-found page, whose
+ * language switch leads to the same missing address in the other language
+ * without the server announcing hreflang twins for it.
  */
 export const LocaleOverrideContext = createContext<LocaleOverride | null>(null);
 

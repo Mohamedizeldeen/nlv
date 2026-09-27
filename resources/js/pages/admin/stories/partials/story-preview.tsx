@@ -204,7 +204,9 @@ export function StoryPreview({
                             className="absolute inset-0"
                         />
                     ) : (
-                        <PortraitPlaceholder />
+                        // In the upper part: the quote card and its mark
+                        // cover the portrait's lower third.
+                        <PortraitPlaceholder className="content-start pt-[22%]" />
                     )}
                     <div className="absolute inset-x-0 bottom-0 h-3/5 bg-linear-to-t from-ink/85 via-ink/35 to-transparent" />
                     {values.city.trim() || coordinates ? (

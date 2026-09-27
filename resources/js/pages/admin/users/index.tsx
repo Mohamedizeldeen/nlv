@@ -1,11 +1,10 @@
-import { Head, Link, router, usePage } from '@inertiajs/react';
-import { History, ShieldCheck, ShieldOff } from 'lucide-react';
+import { Head, Link } from '@inertiajs/react';
+import { History, PenLine, Trash2, UserPlus } from 'lucide-react';
 import ActivityController from '@/actions/App/Http/Controllers/Admin/ActivityController';
 import UserController from '@/actions/App/Http/Controllers/Admin/UserController';
 import { Button, button } from '@/components/admin/button';
 import { DataTable } from '@/components/admin/data-table';
 import type { Column } from '@/components/admin/data-table';
-import { ConfirmDialog } from '@/components/admin/dialog';
 import { EmptyState, NoMatches } from '@/components/admin/empty-state';
 import { FilterBar, SearchInput } from '@/components/admin/filter-bar';
 import { formatDate, parseDay, plural } from '@/components/admin/format';
@@ -14,124 +13,9 @@ import { Pagination } from '@/components/admin/pagination';
 import { Panel } from '@/components/admin/panel';
 import { RelativeTime } from '@/components/admin/relative-time';
 import { Select } from '@/components/admin/select';
-import { Badge } from '@/components/admin/status-badge';
+import { deleteBlocker } from './partials/account';
+import { DeleteUserDialog } from './partials/delete-user-dialog';
 import type { AdminUserRow, UsersIndexProps } from './types';
-
-const firstName = (name: string) => name.trim().split(/\s+/)[0] || name;
-
-/** Run an Inertia visit and settle when it finishes (keeps the dialog busy meanwhile). */
-function visit(send: (onFinish: () => void) => void): Promise<void> {
-    return new Promise((resolve) => send(() => resolve()));
-}
-
-function GrantButton({ user }: { user: AdminUserRow }) {
-    return (
-        <ConfirmDialog
-            tone="default"
-            trigger={
-                <Button
-                    variant="glass"
-                    size="xs"
-                    aria-label={`Make ${user.name} an admin`}
-                >
-                    <ShieldCheck aria-hidden />
-                    Make admin
-                </Button>
-            }
-            title={
-                <>
-                    Make {firstName(user.name)} <em>an admin?</em>
-                </>
-            }
-            description={`${user.name} (${user.email}) will be able to edit the landing page, read and export every lead, and give or remove admin access.`}
-            confirmLabel="Make admin"
-            onConfirm={() =>
-                visit((onFinish) =>
-                    router.post(
-                        UserController.grantAdmin.url(user.id),
-                        {},
-                        { preserveScroll: true, onFinish },
-                    ),
-                )
-            }
-        >
-            {user.verified ? null : (
-                <p className="text-[13.5px] leading-relaxed text-pretty text-smoke">
-                    Their email address isn’t verified yet, so the panel opens
-                    for them once they confirm it.
-                </p>
-            )}
-        </ConfirmDialog>
-    );
-}
-
-function RevokeButton({ user }: { user: AdminUserRow }) {
-    return (
-        <ConfirmDialog
-            trigger={
-                <Button
-                    variant="danger"
-                    size="xs"
-                    aria-label={`Remove admin access from ${user.name}`}
-                >
-                    <ShieldOff aria-hidden />
-                    Remove admin
-                </Button>
-            }
-            title={
-                <>
-                    Remove {firstName(user.name)}’s <em>admin access?</em>
-                </>
-            }
-            description={`${user.name} keeps their account but can no longer open the admin panel. Their next click inside it shows a “staff only” page.`}
-            confirmLabel="Remove admin"
-            onConfirm={() =>
-                visit((onFinish) =>
-                    router.delete(UserController.revokeAdmin.url(user.id), {
-                        preserveScroll: true,
-                        onFinish,
-                    }),
-                )
-            }
-        />
-    );
-}
-
-function AccessAction({
-    user,
-    adminCount,
-}: {
-    user: AdminUserRow;
-    adminCount: number;
-}) {
-    if (!user.isAdmin) {
-        return <GrantButton user={user} />;
-    }
-
-    if (user.isYou) {
-        return (
-            <span
-                className="px-2 text-[12px] text-smoke"
-                title="Another admin has to remove your access."
-            >
-                Your account
-            </span>
-        );
-    }
-
-    if (adminCount <= 1) {
-        return (
-            <span
-                className="px-2 text-[12px] text-smoke"
-                title="Make someone else an admin before removing this one."
-            >
-                Only admin
-            </span>
-        );
-    }
-
-    return <RevokeButton user={user} />;
-}
 
 const COLUMNS: Column<AdminUserRow>[] = [
     {
@@ -157,24 +41,26 @@ const COLUMNS: Column<AdminUserRow>[] = [
         ),
     },
     {
-        key: 'role',
-        header: 'Access',
-        mobile: 'aside',
-        cell: (user) =>
-            user.isAdmin ? (
-                <Badge tone="mint">Admin</Badge>
-            ) : (
-                <Badge tone="muted">Member</Badge>
-            ),
-    },
-    {
         key: 'verified',
         header: 'Email',
+        mobile: 'aside',
         cell: (user) =>
-            user.verified ? (
+            !user.isAdmin ? (
+                <span
+                    className="text-coral"
+                    title="Made before every account was an admin. Open it to give it access, or delete it."
+                >
+                    No panel access
+                </span>
+            ) : user.verified ? (
                 <span className="text-mist">Verified</span>
             ) : (
-                <span className="text-smoke">Not verified</span>
+                <span
+                    className="text-smoke"
+                    title="The panel opens once they confirm their email address."
+                >
+                    Not verified
+                </span>
             ),
     },
     {
@@ -210,7 +96,7 @@ const COLUMNS: Column<AdminUserRow>[] = [
     },
     {
         key: 'created_at',
-        header: 'Joined',
+        header: 'Added',
         sort: true,
         sortFirst: 'desc',
         hideBelow: 'lg',
@@ -219,6 +105,60 @@ const COLUMNS: Column<AdminUserRow>[] = [
     },
 ];
 
+function RowActions({
+    user,
+    adminCount,
+}: {
+    user: AdminUserRow;
+    adminCount: number;
+}) {
+    const blocker = deleteBlocker(user, adminCount);
+
+    return (
+        <>
+            <Link
+                href={UserController.edit.url(user.id)}
+                aria-label={`Edit ${user.name}`}
+                title="Edit"
+                className={button({ variant: 'ghost', size: 'xs' })}
+            >
+                <PenLine aria-hidden />
+                <span className="md:hidden">Edit</span>
+            </Link>
+            {blocker ? (
+                // Kept in place (and explained) so the rows line up.
+                <span title={blocker} className="inline-flex">
+                    <Button
+                        variant="danger"
+                        size="xs"
+                        disabled
+                        aria-label={`Delete ${user.name}: ${blocker}`}
+                        className="pointer-events-none opacity-35"
+                    >
+                        <Trash2 aria-hidden />
+                        <span className="md:hidden">Delete</span>
+                    </Button>
+                </span>
+            ) : (
+                <DeleteUserDialog
+                    user={user}
+                    trigger={
+                        <Button
+                            variant="danger"
+                            size="xs"
+                            aria-label={`Delete ${user.name}`}
+                            title="Delete"
+                        >
+                            <Trash2 aria-hidden />
+                            <span className="md:hidden">Delete</span>
+                        </Button>
+                    }
+                />
+            )}
+        </>
+    );
+}
+
 export default function UsersIndex({
     users,
     filters,
@@ -226,8 +166,12 @@ export default function UsersIndex({
     adminCount,
     totalCount,
 }: UsersIndexProps) {
-    const { errors } = usePage().props;
     const filtered = Object.values(filters).some((value) => value !== null);
+    const addUser = (
+        <Link href={UserController.create.url()} className={button()}>
+            <UserPlus aria-hidden /> Add user
+        </Link>
+    );
 
     return (
         <>
@@ -236,62 +180,32 @@ export default function UsersIndex({
             <PageHeader
                 title={
                     <>
-                        Accounts and <em>admin access.</em>
+                        The people who <em>run the panel.</em>
                     </>
                 }
-                description="Everyone with an account. Admins edit the landing page, read every lead and decide who else is an admin. Accounts can’t be deleted from here."
+                description="Every account here is an admin: it opens the whole panel, from the landing copy to every lead, and can add or remove people. Add someone with a password you set, or email them a link to choose their own."
                 actions={
-                    <Link
-                        href={ActivityController.index.url({
-                            query: { group: 'users' },
-                        })}
-                        className={button({ variant: 'glass' })}
-                    >
-                        <History aria-hidden />
-                        Access changes
-                    </Link>
+                    <>
+                        <Link
+                            href={ActivityController.index.url({
+                                query: { group: 'users' },
+                            })}
+                            className={button({ variant: 'glass' })}
+                        >
+                            <History aria-hidden />
+                            Account history
+                        </Link>
+                        {addUser}
+                    </>
                 }
             />
 
             <div className="mt-8 grid gap-4">
-                {errors.admin ? (
-                    <div
-                        role="alert"
-                        className="flex flex-wrap items-baseline gap-x-4 gap-y-1 rounded-[18px] bg-coral/[0.08] px-5 py-3.5 ring-1 ring-coral/35 ring-inset sm:px-6"
-                    >
-                        <span className="text-[10px] font-medium tracking-[0.22em] text-coral uppercase">
-                            Nothing changed
-                        </span>
-                        <span className="text-[14px] leading-relaxed text-pretty text-bone">
-                            {errors.admin}
-                        </span>
-                    </div>
-                ) : null}
-
-                <FilterBar
-                    aside={
-                        <span>
-                            {plural(totalCount, 'account')} ·{' '}
-                            {plural(adminCount, 'admin')}
-                        </span>
-                    }
-                >
+                <FilterBar aside={<span>{plural(totalCount, 'account')}</span>}>
                     <SearchInput
                         name="search"
                         defaultValue={filters.search ?? ''}
                         placeholder="Name or email"
-                    />
-                    <Select
-                        size="sm"
-                        name="role"
-                        aria-label="Access"
-                        placeholder="Admins and members"
-                        options={[
-                            { value: 'admin', label: 'Admins only' },
-                            { value: 'member', label: 'Members only' },
-                        ]}
-                        defaultValue={filters.role ?? ''}
-                        className="w-full sm:w-52"
                     />
                     <Select
                         size="sm"
@@ -313,27 +227,10 @@ export default function UsersIndex({
                         columns={COLUMNS}
                         rows={users.data}
                         rowKey={(user) => user.id}
+                        rowHref={(user) => UserController.edit.url(user.id)}
                         sort={sort}
                         actions={(user) => (
-                            <>
-                                <Link
-                                    href={ActivityController.index.url({
-                                        query: { user: String(user.id) },
-                                    })}
-                                    aria-label={`Activity of ${user.name}`}
-                                    className={button({
-                                        variant: 'ghost',
-                                        size: 'xs',
-                                    })}
-                                >
-                                    <History aria-hidden />
-                                    Activity
-                                </Link>
-                                <AccessAction
-                                    user={user}
-                                    adminCount={adminCount}
-                                />
-                            </>
+                            <RowActions user={user} adminCount={adminCount} />
                         )}
                         empty={
                             filtered ? (
@@ -350,7 +247,8 @@ export default function UsersIndex({
                                             No accounts <em>yet.</em>
                                         </>
                                     }
-                                    description="People appear here once they create an account."
+                                    description="Add the people who run the landing page and follow up on leads."
+                                    action={addUser}
                                 />
                             )
                         }

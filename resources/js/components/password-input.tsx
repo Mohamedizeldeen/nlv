@@ -1,37 +1,34 @@
 import { Eye, EyeOff } from 'lucide-react';
-import type { ComponentProps, Ref } from 'react';
 import { useState } from 'react';
-import { Input } from '@/components/ui/input';
-import { cn } from '@/lib/utils';
+import { TextInput } from '@/components/admin/text-input';
+import type { TextInputProps } from '@/components/admin/text-input';
 
-export default function PasswordInput({
-    className,
-    ref,
-    ...props
-}: Omit<ComponentProps<'input'>, 'type'> & { ref?: Ref<HTMLInputElement> }) {
-    const [showPassword, setShowPassword] = useState(false);
+/**
+ * The admin kit's glass text field for passwords, with a show/hide button
+ * at its end. Inside a <Field> it picks up the label, hint and error
+ * wiring like any kit input; `ref` reaches the <input>.
+ */
+export default function PasswordInput(
+    props: Omit<TextInputProps, 'type' | 'trailing'>,
+) {
+    const [visible, setVisible] = useState(false);
 
     return (
-        <div className="relative">
-            <Input
-                type={showPassword ? 'text' : 'password'}
-                className={cn('pr-10', className)}
-                ref={ref}
-                {...props}
-            />
-            <button
-                type="button"
-                onClick={() => setShowPassword((prev) => !prev)}
-                className="absolute inset-y-0 right-0 flex items-center rounded-r-md px-3 text-muted-foreground hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:outline-none"
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
-                tabIndex={-1}
-            >
-                {showPassword ? (
-                    <EyeOff className="size-4" />
-                ) : (
-                    <Eye className="size-4" />
-                )}
-            </button>
-        </div>
+        <TextInput
+            {...props}
+            type={visible ? 'text' : 'password'}
+            inputClassName="[&::-ms-reveal]:hidden"
+            trailing={
+                <button
+                    type="button"
+                    onClick={() => setVisible((shown) => !shown)}
+                    aria-label={visible ? 'Hide password' : 'Show password'}
+                    aria-pressed={visible}
+                    className="-mr-2 grid size-8 cursor-pointer place-items-center rounded-[10px] text-smoke transition-colors duration-300 ease-glass hover:bg-white/[0.08] hover:text-bone focus-visible:ring-2 focus-visible:ring-mint/70 focus-visible:outline-none"
+                >
+                    {visible ? <EyeOff aria-hidden /> : <Eye aria-hidden />}
+                </button>
+            }
+        />
     );
 }

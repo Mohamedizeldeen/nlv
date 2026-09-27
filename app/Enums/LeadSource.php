@@ -5,7 +5,8 @@ namespace App\Enums;
 use App\Enums\Concerns\HasOptions;
 
 /**
- * The landing page CTA that opened the order form.
+ * The landing page CTA that opened the order form (NotFound: the public
+ * 404 page's "Order a device").
  */
 enum LeadSource: string
 {
@@ -20,6 +21,7 @@ enum LeadSource: string
     case OrderSection = 'order-section';
     case MobileMenu = 'mobile-menu';
     case Footer = 'footer';
+    case NotFound = 'not-found';
 
     public function label(): string
     {
@@ -33,6 +35,7 @@ enum LeadSource: string
             self::OrderSection => 'Order section',
             self::MobileMenu => 'Mobile menu',
             self::Footer => 'Footer',
+            self::NotFound => 'Page not found (404)',
         };
     }
 }

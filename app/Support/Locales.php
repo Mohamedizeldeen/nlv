@@ -9,7 +9,7 @@ use Illuminate\Routing\Route;
  * The site's two languages. English is the default, at `/` and
  * `/pages/{slug}`; Arabic is the same pages under `/ar` (route names
  * prefixed "ar.", locale set by the SetLocale middleware). The admin panel,
- * the auth pages and the dashboard are English only.
+ * the auth pages and the account pages are English only.
  */
 final class Locales
 {
@@ -94,7 +94,7 @@ final class Locales
     /**
      * The same page in each language, as absolute URLs, for the language
      * switch and the hreflang links. Null on pages that are not localized
-     * (admin, auth, dashboard).
+     * (admin, auth, account).
      *
      * @return array{en: string, ar: string}|null
      */

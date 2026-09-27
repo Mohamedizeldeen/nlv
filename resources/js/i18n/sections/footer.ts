@@ -12,6 +12,12 @@ export default defineMessages({
         contact: 'Contact',
         social: '{brand} on {network}',
         copyright: '© {year} {company}',
+
+        // The contact lines under the company line (Site content → Contact
+        // details); a line whose setting is empty is not shown.
+        phone: 'Phone',
+        whatsapp: 'WhatsApp',
+        address: 'Office',
     },
     ar: {
         navLabel: 'روابط التذييل',
@@ -20,5 +26,9 @@ export default defineMessages({
         social: '{brand} على {network}',
         // Set as an isolated left-to-right run (bidi-ltr), like a code.
         copyright: '© {year} {company}',
+
+        phone: 'الهاتف',
+        whatsapp: 'واتساب',
+        address: 'العنوان',
     },
 });

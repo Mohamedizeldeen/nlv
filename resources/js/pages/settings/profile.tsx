@@ -3,21 +3,15 @@ import { Form, Head, usePage } from '@inertiajs/react';
 import { Link } from '@inertiajs/react';
 /* @end-chisel-email-verification */
 import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
+import { Button } from '@/components/admin/button';
+import { Field } from '@/components/admin/field';
+import { Panel } from '@/components/admin/panel';
+import { TextInput } from '@/components/admin/text-input';
 import DeleteUser from '@/components/delete-user';
-import Heading from '@/components/heading';
-import InputError from '@/components/input-error';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { edit } from '@/routes/profile';
-import type { Auth } from '@/types';
+import { Spinner } from '@/components/ui/spinner';
 /* @chisel-email-verification */
 import { send } from '@/routes/verification';
 /* @end-chisel-email-verification */
-
-type PageProps = {
-    auth: Auth;
-};
 
 export default function Profile(
     /* @chisel-email-verification */
@@ -30,119 +24,93 @@ export default function Profile(
     },
     /* @end-chisel-email-verification */
 ) {
-    const { auth } = usePage<PageProps>().props;
+    const { auth } = usePage().props;
 
     return (
         <>
-            <Head title="Profile settings" />
+            <Head title="Profile · Account · Admin" />
 
-            <h1 className="sr-only">Profile settings</h1>
-
-            <div className="space-y-6">
-                <Heading
-                    variant="small"
-                    title="Profile"
-                    description="Update your name and email address"
-                />
-
-                <Form
-                    {...ProfileController.update.form()}
-                    options={{
-                        preserveScroll: true,
-                    }}
-                    className="space-y-6"
-                >
-                    {({ processing, errors }) => (
-                        <>
-                            <div className="grid gap-2">
-                                <Label htmlFor="name">Name</Label>
-
-                                <Input
-                                    id="name"
-                                    className="mt-1 block w-full"
-                                    defaultValue={auth.user.name}
+            <Form
+                {...ProfileController.update.form()}
+                options={{ preserveScroll: true }}
+            >
+                {({ processing, errors }) => (
+                    <Panel
+                        title="Name and email"
+                        description="Log-in, reset and confirmation emails go to this address."
+                        variant="strong"
+                        footer={
+                            <Button
+                                type="submit"
+                                disabled={processing}
+                                data-test="update-profile-button"
+                            >
+                                {processing ? <Spinner /> : null}
+                                Save profile
+                            </Button>
+                        }
+                    >
+                        <div className="grid gap-5 md:grid-cols-2">
+                            <Field label="Name" error={errors.name} required>
+                                <TextInput
                                     name="name"
-                                    required
+                                    defaultValue={auth.user.name}
                                     autoComplete="name"
-                                    placeholder="Full name"
+                                    maxLength={255}
                                 />
+                            </Field>
 
-                                <InputError
-                                    className="mt-2"
-                                    message={errors.name}
-                                />
-                            </div>
-
-                            <div className="grid gap-2">
-                                <Label htmlFor="email">Email address</Label>
-
-                                <Input
-                                    id="email"
+                            <Field
+                                label="Email address"
+                                error={errors.email}
+                                required
+                                hint="A new address has to be confirmed from an emailed link before the admin panel opens again."
+                            >
+                                <TextInput
                                     type="email"
-                                    className="mt-1 block w-full"
-                                    defaultValue={auth.user.email}
                                     name="email"
-                                    required
+                                    defaultValue={auth.user.email}
                                     autoComplete="username"
-                                    placeholder="Email address"
+                                    maxLength={255}
                                 />
+                            </Field>
+                        </div>
 
-                                <InputError
-                                    className="mt-2"
-                                    message={errors.email}
-                                />
+                        {/* @chisel-email-verification */}
+                        {mustVerifyEmail &&
+                        auth.user.email_verified_at === null ? (
+                            <div className="mt-6 rounded-[16px] bg-coral/[0.07] px-4 py-3.5 text-[13.5px] leading-relaxed text-pretty text-mist ring-1 ring-coral/25 ring-inset">
+                                <p>
+                                    <span className="text-bone">
+                                        Your email address isn’t confirmed yet.
+                                    </span>{' '}
+                                    The admin panel opens once it is.{' '}
+                                    <Link
+                                        href={send()}
+                                        as="button"
+                                        className="cursor-pointer rounded-[4px] text-mint underline decoration-mint/40 underline-offset-[0.28em] transition-[text-decoration-color] duration-[380ms] ease-glass hover:decoration-mint focus-visible:ring-2 focus-visible:ring-mint/70 focus-visible:outline-none"
+                                    >
+                                        Email me a confirmation link
+                                    </Link>
+                                </p>
+
+                                {status === 'verification-link-sent' ? (
+                                    <p
+                                        role="status"
+                                        className="mt-1.5 text-mint"
+                                    >
+                                        The link is on its way to{' '}
+                                        {auth.user.email}.
+                                    </p>
+                                ) : null}
                             </div>
-
-                            {/* @chisel-email-verification */}
-                            {mustVerifyEmail &&
-                                auth.user.email_verified_at === null && (
-                                    <div>
-                                        <p className="-mt-4 text-sm text-muted-foreground">
-                                            Your email address is unverified.{' '}
-                                            <Link
-                                                href={send()}
-                                                as="button"
-                                                className="text-foreground underline decoration-neutral-300 underline-offset-4 transition-colors duration-300 ease-out hover:decoration-current! dark:decoration-neutral-500"
-                                            >
-                                                Click here to re-send the
-                                                verification email.
-                                            </Link>
-                                        </p>
-
-                                        {status ===
-                                            'verification-link-sent' && (
-                                            <div className="mt-2 text-sm font-medium text-green-600">
-                                                A new verification link has been
-                                                sent to your email address.
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-                            {/* @end-chisel-email-verification */}
-
-                            <div className="flex items-center gap-4">
-                                <Button
-                                    disabled={processing}
-                                    data-test="update-profile-button"
-                                >
-                                    Save
-                                </Button>
-                            </div>
-                        </>
-                    )}
-                </Form>
-            </div>
+                        ) : null}
+                        {/* @end-chisel-email-verification */}
+                    </Panel>
+                )}
+            </Form>
 
             <DeleteUser />
         </>
     );
 }
-
-Profile.layout = {
-    breadcrumbs: [
-        {
-            title: 'Profile settings',
-            href: edit(),
-        },
-    ],
-};

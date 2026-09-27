@@ -1,7 +1,7 @@
 /*
  * The public site's two languages. English is the default at `/` and
  * `/pages/{slug}`; Arabic lives at `/ar` and `/ar/pages/{slug}`. The admin
- * panel, the auth pages and the dashboard stay English. These helpers are
+ * panel, the auth pages and the account pages stay English. These helpers are
  * plain functions (no React), so they also work in event handlers, tests
  * and the dev harness; components use `useI18n()` instead.
  */
@@ -77,7 +77,7 @@ function stripLocale(path: string): string {
  * is "/ar/pages/privacy", `localePath('/#pricing', 'ar')` is "/ar#pricing".
  * Accepts either language's form (it is idempotent), keeps the query and
  * the hash, and leaves everything that has no Arabic page alone: external
- * URLs, `mailto:`/`tel:`, bare `#anchors`, /login, /dashboard, /admin…
+ * URLs, `mailto:`/`tel:`, bare `#anchors`, /login, /admin, /settings…
  */
 export function localePath(href: string, locale: Locale): string {
     if (!href.startsWith('/') || href.startsWith('//')) {

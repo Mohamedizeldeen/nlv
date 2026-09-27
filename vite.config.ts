@@ -6,36 +6,39 @@ import react, { reactCompilerPreset } from '@vitejs/plugin-react';
 import laravel from 'laravel-vite-plugin';
 import { bunny } from 'laravel-vite-plugin/fonts';
 import { defineConfig, lazyPlugins } from 'vite-plus';
+import { woff2First } from './vite/woff2-first';
 
 export default defineConfig({
     plugins: lazyPlugins(() => [
-        laravel({
-            input: ['resources/css/app.css', 'resources/js/app.tsx'],
-            refresh: true,
-            fonts: [
-                bunny('Instrument Sans', {
-                    weights: [400, 500, 600],
-                }),
-                bunny('Bodoni Moda', {
-                    weights: [400, 500, 600],
-                    styles: ['normal', 'italic'],
-                    preload: [{ weight: 500 }],
-                }),
-                // Arabic (the /ar pages): display beside Bodoni, text beside
-                // Instrument Sans. Arabic glyphs only, never preloaded: the
-                // English pages download them only if Arabic is on screen.
-                bunny('Amiri', {
-                    weights: [400, 700],
-                    subsets: ['arabic'],
-                    preload: false,
-                }),
-                bunny('IBM Plex Sans Arabic', {
-                    weights: [400, 500, 600],
-                    subsets: ['arabic'],
-                    preload: false,
-                }),
-            ],
-        }),
+        ...woff2First(
+            laravel({
+                input: ['resources/css/app.css', 'resources/js/app.tsx'],
+                refresh: true,
+                fonts: [
+                    bunny('Instrument Sans', {
+                        weights: [400, 500, 600],
+                    }),
+                    bunny('Bodoni Moda', {
+                        weights: [400, 500, 600],
+                        styles: ['normal', 'italic'],
+                        preload: [{ weight: 500 }],
+                    }),
+                    // Arabic (the /ar pages): display beside Bodoni, text beside
+                    // Instrument Sans. Arabic glyphs only, never preloaded: the
+                    // English pages download them only if Arabic is on screen.
+                    bunny('Amiri', {
+                        weights: [400, 700],
+                        subsets: ['arabic'],
+                        preload: false,
+                    }),
+                    bunny('IBM Plex Sans Arabic', {
+                        weights: [400, 500, 600],
+                        subsets: ['arabic'],
+                        preload: false,
+                    }),
+                ],
+            }),
+        ),
         inertia(),
         react(),
         babel({

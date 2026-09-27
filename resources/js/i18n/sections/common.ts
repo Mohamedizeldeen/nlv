@@ -20,9 +20,10 @@ export default defineMessages({
         sectionLookbook: 'Lookbook',
         sectionPricing: 'Pricing',
 
-        // The account links (the auth pages themselves are English only).
+        // The account links (the auth pages and the admin panel they lead
+        // to are English only).
         logIn: 'Log in',
-        dashboard: 'Dashboard',
+        adminPanel: 'Admin panel',
 
         // The wordmark link's accessible name.
         brandHome: '{brand}, home',
@@ -34,6 +35,13 @@ export default defineMessages({
 
         // The toast region's landmark name (components/ui/sonner.tsx).
         notifications: 'Notifications',
+
+        // Under the order form and in the pop-up's thank-you view, after
+        // "Prefer email?": the numbers set in Site content (contact.phone,
+        // contact.whatsapp), each a link. Only the numbers that are set.
+        talkBoth: 'Prefer to talk? Call {phone} or WhatsApp {whatsapp}.',
+        talkPhone: 'Prefer to talk? Call {phone}.',
+        talkWhatsApp: 'Prefer to talk? We’re on WhatsApp at {whatsapp}.',
     },
     ar: {
         otherLanguage: 'English',
@@ -48,7 +56,7 @@ export default defineMessages({
         sectionPricing: 'الأسعار',
 
         logIn: 'تسجيل الدخول',
-        dashboard: 'لوحة التحكم',
+        adminPanel: 'لوحة التحكم',
 
         brandHome: '{brand}، الصفحة الرئيسية',
         brandTop: '{brand}، العودة إلى أعلى الصفحة',
@@ -57,5 +65,11 @@ export default defineMessages({
         groupLegal: 'الشؤون القانونية',
 
         notifications: 'الإشعارات',
+
+        // The numbers are isolated left-to-right runs inside the sentence.
+        talkBoth:
+            'هل تفضّل الحديث إلينا؟ اتصل بنا على {phone}، أو راسلنا عبر واتساب على {whatsapp}.',
+        talkPhone: 'هل تفضّل الحديث إلينا؟ اتصل بنا على {phone}.',
+        talkWhatsApp: 'هل تفضّل الحديث إلينا؟ راسلنا عبر واتساب على {whatsapp}.',
     },
 });

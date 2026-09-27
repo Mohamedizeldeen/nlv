@@ -2,10 +2,6 @@
 
 namespace App\Providers;
 
-/* @chisel-registration */
-
-use App\Actions\Fortify\CreateNewUser;
-/* @end-chisel-registration */
 use App\Actions\Fortify\ResetUserPassword;
 use App\Http\Responses\LoginResponse;
 use App\Http\Responses\PasskeyLoginResponse;
@@ -30,7 +26,8 @@ class FortifyServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        // Admins land on /admin after signing in (password, 2FA or passkey); others keep /dashboard.
+        // Everyone lands on /admin after signing in (password, 2FA or passkey),
+        // unless they were on their way somewhere else.
         $this->app->singleton(LoginResponseContract::class, LoginResponse::class);
         $this->app->singleton(TwoFactorLoginResponseContract::class, TwoFactorLoginResponse::class);
         $this->app->singleton(PasskeyLoginResponseContract::class, PasskeyLoginResponse::class);
@@ -51,10 +48,9 @@ class FortifyServiceProvider extends ServiceProvider
      */
     private function configureActions(): void
     {
+        // No createUsersUsing(): registration is off (config/fortify.php);
+        // admins add people from /admin/users.
         Fortify::resetUserPasswordsUsing(ResetUserPassword::class);
-        /* @chisel-registration */
-        Fortify::createUsersUsing(CreateNewUser::class);
-        /* @end-chisel-registration */
     }
 
     /**
@@ -82,12 +78,6 @@ class FortifyServiceProvider extends ServiceProvider
             'status' => $request->session()->get('status'),
         ]));
         /* @end-chisel-email-verification */
-
-        /* @chisel-registration */
-        Fortify::registerView(fn () => Inertia::render('auth/register', [
-            'passwordRules' => Password::defaults()->toPasswordRulesString(),
-        ]));
-        /* @end-chisel-registration */
 
         /* @chisel-2fa */
         Fortify::twoFactorChallengeView(fn () => Inertia::render('auth/two-factor-challenge'));

@@ -292,13 +292,13 @@ export default function Navbar({ base = '' }: { base?: SectionBase }) {
                                 />
                                 {links.signedIn ? (
                                     <Link
-                                        href={links.dashboard}
+                                        href={links.admin}
                                         className={cta({
                                             variant: 'primary',
                                             size: 'sm',
                                         })}
                                     >
-                                        {t('common.dashboard')}
+                                        {t('common.adminPanel')}
                                     </Link>
                                 ) : (
                                     <>
@@ -641,14 +641,14 @@ function MobileMenu({
                 {/* From sm up the capsule already carries these. */}
                 {links.signedIn ? (
                     <Link
-                        href={links.dashboard}
+                        href={links.admin}
                         onClick={onNavigate}
                         className={cn(
                             cta({ variant: 'primary' }),
                             'w-full sm:hidden',
                         )}
                     >
-                        {t('common.dashboard')}
+                        {t('common.adminPanel')}
                     </Link>
                 ) : (
                     <div className="grid grid-cols-2 gap-2 sm:hidden">

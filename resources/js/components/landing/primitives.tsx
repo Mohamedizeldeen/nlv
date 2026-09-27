@@ -269,12 +269,13 @@ export function LogoMark({ className }: { className?: string }) {
 
 /**
  * The logo and the product name: a lockup, so it keeps its left-to-right
- * order on the Arabic page too.
+ * order, and its tracking (lang="en"), on the Arabic page too.
  */
 export function Wordmark({ className }: { className?: string }) {
     return (
         <span
             dir="ltr"
+            lang="en"
             className={cn(
                 'inline-flex items-center gap-2.5 text-bone',
                 className,

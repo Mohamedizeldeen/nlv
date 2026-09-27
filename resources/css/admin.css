@@ -65,3 +65,42 @@ html.admin-panel {
         scroll-padding-top: 1.5rem;
     }
 }
+
+/*
+ * The starter kit's shadcn tokens, mapped to the admin's palette while the
+ * admin look is on (the admin layout, the sign-in pages and the account
+ * pages add `admin-panel` to <html>): any shadcn piece rendered there
+ * (the one-time-code slots, spinners, a stray dialog) comes out as dark
+ * glass with mint accents instead of the starter's grey. `:root` doubles
+ * the specificity so these beat app.css's `:root` and `.dark` blocks.
+ */
+:root.admin-panel {
+    --background: var(--color-ink);
+    --foreground: var(--color-bone);
+    --card: oklch(0.2 0.016 200);
+    --card-foreground: var(--color-bone);
+    --popover: oklch(0.2 0.016 200 / 0.96);
+    --popover-foreground: var(--color-bone);
+    --primary: var(--color-mint);
+    --primary-foreground: var(--color-ink);
+    --secondary: oklch(1 0 0 / 0.08);
+    --secondary-foreground: var(--color-bone);
+    --muted: oklch(1 0 0 / 0.06);
+    --muted-foreground: var(--color-smoke);
+    --accent: oklch(1 0 0 / 0.08);
+    --accent-foreground: var(--color-bone);
+    --destructive: var(--color-coral);
+    --destructive-foreground: var(--color-coral);
+    --border: oklch(1 0 0 / 0.12);
+    --input: oklch(1 0 0 / 0.16);
+    --ring: oklch(0.84 0.12 160 / 0.7);
+    --radius: 0.875rem;
+    --sidebar: oklch(0.19 0.016 200);
+    --sidebar-foreground: var(--color-bone);
+    --sidebar-primary: var(--color-mint);
+    --sidebar-primary-foreground: var(--color-ink);
+    --sidebar-accent: oklch(1 0 0 / 0.08);
+    --sidebar-accent-foreground: var(--color-bone);
+    --sidebar-border: oklch(1 0 0 / 0.12);
+    --sidebar-ring: oklch(0.84 0.12 160 / 0.7);
+}

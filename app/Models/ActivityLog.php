@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
  *
  * @property int $id
  * @property int|null $user_id
+ * @property string|null $causer_name
  * @property string $event
  * @property string|null $subject_type
  * @property int|null $subject_id
@@ -26,7 +27,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
  * @property-read User|null $user
  * @property-read Model|null $subject
  */
-#[Fillable(['user_id', 'event', 'subject_type', 'subject_id', 'description', 'properties', 'ip_address', 'user_agent'])]
+#[Fillable(['user_id', 'causer_name', 'event', 'subject_type', 'subject_id', 'description', 'properties', 'ip_address', 'user_agent'])]
 class ActivityLog extends Model
 {
     /** @use HasFactory<ActivityLogFactory> */
@@ -51,7 +52,8 @@ class ActivityLog extends Model
     }
 
     /**
-     * The user who did it (null for guests, the console and deleted users).
+     * The user who did it (null for guests, the console and deleted users;
+     * a deleted user's name is kept in causer_name).
      *
      * @return BelongsTo<User, $this>
      */
@@ -68,6 +70,28 @@ class ActivityLog extends Model
     public function subject(): MorphTo
     {
         return $this->morphTo();
+    }
+
+    /**
+     * Who did it, for the admin: the user's current name, "Jane Doe (deleted
+     * account)" once that account is gone, or null for visitors and the
+     * console. Load the `user` relation first when listing entries.
+     */
+    public function causerLabel(): ?string
+    {
+        if ($this->user !== null) {
+            return $this->user->name;
+        }
+
+        return $this->causedByDeletedAccount() ? "{$this->causer_name} (deleted account)" : null;
+    }
+
+    /**
+     * Whether a signed-in user did it whose account has since been deleted.
+     */
+    public function causedByDeletedAccount(): bool
+    {
+        return $this->user_id === null && $this->causer_name !== null && $this->causer_name !== '';
     }
 
     /**

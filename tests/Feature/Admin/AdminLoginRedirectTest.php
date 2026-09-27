@@ -4,7 +4,11 @@ namespace Tests\Feature\Admin;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Inertia\Testing\AssertableInertia as Assert;
 use Laravel\Fortify\Features;
+use Laravel\Passkeys\Contracts\PasskeyLoginResponse;
 use Tests\TestCase;
 
 class AdminLoginRedirectTest extends TestCase
@@ -24,7 +28,7 @@ class AdminLoginRedirectTest extends TestCase
         $response->assertRedirect(route('admin.dashboard', absolute: false));
     }
 
-    public function test_non_admins_still_land_on_the_dashboard_after_login(): void
+    public function test_accounts_without_admin_access_land_on_the_panel_too_and_see_its_403_page(): void
     {
         $user = User::factory()->create();
 
@@ -34,7 +38,14 @@ class AdminLoginRedirectTest extends TestCase
         ]);
 
         $this->assertAuthenticatedAs($user);
-        $response->assertRedirect(route('dashboard', absolute: false));
+        $response->assertRedirect(route('admin.dashboard', absolute: false));
+
+        $this->get(route('admin.dashboard'))
+            ->assertForbidden()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('admin/forbidden')
+                ->where('reason', 'not-admin'),
+            );
     }
 
     public function test_the_intended_url_wins_over_the_admin_panel(): void
@@ -47,6 +58,19 @@ class AdminLoginRedirectTest extends TestCase
             'email' => $admin->email,
             'password' => 'password',
         ])->assertRedirect(route('profile.edit'));
+    }
+
+    public function test_passkey_logins_land_on_the_admin_panel(): void
+    {
+        $this->actingAs(User::factory()->admin()->create());
+
+        $request = Request::create('/passkeys/login', 'POST', server: ['HTTP_ACCEPT' => 'application/json']);
+        $request->setLaravelSession($this->app['session.store']);
+
+        $response = $this->app->make(PasskeyLoginResponse::class)->toResponse($request);
+
+        $this->assertInstanceOf(JsonResponse::class, $response);
+        $this->assertSame(['redirect' => route('admin.dashboard')], $response->getData(true));
     }
 
     public function test_json_logins_keep_fortifys_payload(): void

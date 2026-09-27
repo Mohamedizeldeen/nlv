@@ -1,46 +1,67 @@
-// Components
-import { Form, Head } from '@inertiajs/react';
-import TextLink from '@/components/text-link';
-import { Button } from '@/components/ui/button';
+import { Form, Head, Link, router, usePage } from '@inertiajs/react';
+import { LogOut } from 'lucide-react';
+import { button } from '@/components/admin/button';
 import { Spinner } from '@/components/ui/spinner';
+import { AuthNotice } from '@/layouts/auth-layout';
 import { logout } from '@/routes';
 import { send } from '@/routes/verification';
 
 export default function VerifyEmail({ status }: { status?: string }) {
+    const { auth } = usePage().props;
+    const email = auth.user?.email;
+
     return (
         <>
-            <Head title="Email verification" />
+            <Head title="Confirm your email" />
 
-            {status === 'verification-link-sent' && (
-                <div className="mb-4 text-center text-sm font-medium text-green-600">
-                    A new verification link has been sent to the email address
-                    you provided during registration.
-                </div>
-            )}
+            {status === 'verification-link-sent' ? (
+                <AuthNotice>
+                    The link is on its way. Open it on any device.
+                </AuthNotice>
+            ) : null}
 
-            <Form {...send.form()} className="space-y-6 text-center">
-                {({ processing }) => (
+            <p className="text-[14px] leading-relaxed text-pretty text-mist">
+                {email ? (
                     <>
-                        <Button disabled={processing} variant="secondary">
-                            {processing && <Spinner />}
-                            Resend verification email
-                        </Button>
-
-                        <TextLink
-                            href={logout()}
-                            className="mx-auto block text-sm"
-                        >
-                            Log out
-                        </TextLink>
+                        The link goes to{' '}
+                        <span className="text-bone">{email}</span>.{' '}
                     </>
+                ) : null}
+                Nothing after a few minutes? Check the spam folder, or send it
+                again.
+            </p>
+
+            <Form {...send.form()} className="mt-6">
+                {({ processing }) => (
+                    <button
+                        type="submit"
+                        className={button({ size: 'md', className: 'w-full' })}
+                        disabled={processing}
+                    >
+                        {processing ? <Spinner /> : null}
+                        Email me the link
+                    </button>
                 )}
             </Form>
+
+            <div className="mt-2 flex justify-center">
+                <Link
+                    href={logout()}
+                    as="button"
+                    onClick={() => router.flushAll()}
+                    className={button({ variant: 'ghost' })}
+                >
+                    <LogOut aria-hidden />
+                    Log out
+                </Link>
+            </div>
         </>
     );
 }
 
 VerifyEmail.layout = {
-    title: 'Email verification',
+    title: 'Confirm your',
+    accent: 'email address.',
     description:
-        'Please verify your email address by clicking on the link we just emailed to you.',
+        'The admin panel opens once your address is confirmed: we email you a link, you open it.',
 };

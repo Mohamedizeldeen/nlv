@@ -71,9 +71,12 @@ return [
     | authentication or password reset when the operations are successful
     | and the user is authenticated. You are free to change this value.
     |
+    | Every account works in the admin panel, so this is /admin (an account
+    | without admin access sees the panel's 403 page, which offers Log out).
+    |
     */
 
-    'home' => '/dashboard',
+    'home' => '/admin',
 
     /*
     |--------------------------------------------------------------------------
@@ -164,12 +167,12 @@ return [
     | by removing them from this array. You're free to only remove some of
     | these features, or you can even remove all of these if you need to.
     |
+    | Registration is off: there is no public sign-up, admins add people
+    | from /admin/users (so /register is a 404).
+    |
     */
 
     'features' => [
-        /* @chisel-registration */
-        Features::registration(),
-        /* @end-chisel-registration */
         Features::resetPasswords(),
         /* @chisel-email-verification */
         Features::emailVerification(),

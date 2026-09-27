@@ -206,7 +206,7 @@ class ArabicPagesTest extends TestCase
         $this->actingAs(User::factory()->admin()->create())->get('/ar/pages/draft')->assertOk();
     }
 
-    public function test_the_admin_and_the_dashboard_stay_english_without_alternates(): void
+    public function test_the_admin_and_the_account_pages_stay_english_without_alternates(): void
     {
         $admin = User::factory()->admin()->create();
 
@@ -224,7 +224,7 @@ class ArabicPagesTest extends TestCase
                 ->where('alternates', null),
             );
 
-        $this->get(route('dashboard'))
+        $this->get(route('profile.edit'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page->where('locale', 'en')->where('alternates', null));
     }

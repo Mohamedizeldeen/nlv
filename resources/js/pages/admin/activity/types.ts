@@ -24,6 +24,12 @@ export type ActivitySubject = {
     exists: boolean;
 };
 
+/**
+ * Who did it: a user, a user whose account has been deleted since, a
+ * visitor (not signed in), or the console / a scheduled task.
+ */
+export type ActorKind = 'user' | 'deleted' | 'visitor' | 'system';
+
 export type ActivityEntry = {
     id: number;
     /** e.g. "story.updated", "auth.login", "lead.submitted" */
@@ -31,8 +37,14 @@ export type ActivityEntry = {
     group: ActivityGroup;
     description: string;
     user: { id: number; name: string; email: string } | null;
-    /** The user's name, or "Visitor" / "System". */
+    /**
+     * The user's name, "Jane Doe (deleted account)" once the account is
+     * gone, or "Visitor" / "System".
+     */
     actor: string;
+    actorKind: ActorKind;
+    /** The user's name when the entry was written (kept after deletion). */
+    causerName: string | null;
     subject: ActivitySubject | null;
     /** properties.changes: { field: [before, after] }. */
     changes: ChangeSet | null;
@@ -50,7 +62,10 @@ export type ActivityEntry = {
 
 export type ActivityFilters = {
     group: string | null;
-    /** A user id, or "none" for visitors and the system. */
+    /**
+     * A user id, "deleted" for accounts deleted since, or "none" for
+     * visitors and the system.
+     */
     user: string | null;
     /** YYYY-MM-DD */
     from: string | null;

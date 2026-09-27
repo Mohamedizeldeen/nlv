@@ -26,9 +26,11 @@ Route::post('order-requests', [OrderRequestController::class, 'store'])
     ->middleware('throttle:order-requests')
     ->name('order-requests.store');
 
-Route::middleware(['auth', 'verified'])->group(function () {
-    Route::inertia('dashboard', 'dashboard')->name('dashboard');
-});
+// The starter kit's /dashboard is gone: every account works in the admin
+// panel. Old links and bookmarks land there (the 403 page for accounts
+// without admin access). There is no public sign-up (config/fortify.php):
+// admins add people from /admin/users.
+Route::permanentRedirect('dashboard', '/admin');
 
 require __DIR__.'/settings.php';
 require __DIR__.'/admin.php';

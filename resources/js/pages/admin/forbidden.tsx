@@ -6,8 +6,9 @@ import { button } from '@/components/admin/button';
 import { BRAND } from '@/components/landing/brand';
 import { Atmosphere, LogoMark } from '@/components/landing/primitives';
 import { cn } from '@/lib/utils';
-import { dashboard, home, login, logout } from '@/routes';
+import { home, login, logout } from '@/routes';
 import { dashboard as adminDashboard } from '@/routes/admin';
+import { edit as editProfile } from '@/routes/profile';
 
 type ForbiddenProps = {
     status: number;
@@ -201,7 +202,7 @@ export default function Forbidden({
                         ) : user ? (
                             <>
                                 <Link
-                                    href={dashboard()}
+                                    href={editProfile()}
                                     className={button({ variant: 'glass' })}
                                 >
                                     Your account

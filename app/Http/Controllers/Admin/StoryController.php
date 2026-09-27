@@ -300,7 +300,7 @@ class StoryController extends Controller
                 'id' => $entry->id,
                 'event' => $entry->event,
                 'description' => $entry->description,
-                'user' => $entry->user?->name,
+                'user' => $entry->causerLabel(),
                 'createdAt' => ($entry->created_at ?? Date::now())->toIso8601String(),
             ]);
 

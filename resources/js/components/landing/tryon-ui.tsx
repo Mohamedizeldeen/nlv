@@ -97,7 +97,7 @@ export function FitChip({
     );
 }
 
-/** Structurally compatible with `IMAGES.garments` entries. */
+/** An `IMAGES.garments` entry, with its label from the section's dictionary. */
 export type Garment = {
     /** Unsplash photo id. */
     id: string;

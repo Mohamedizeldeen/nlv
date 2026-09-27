@@ -133,7 +133,7 @@ class SiteContentController extends Controller
 
         return [
             'at' => $entry->created_at->toIso8601String(),
-            'user' => $entry->user?->name,
+            'user' => $entry->causerLabel(),
         ];
     }
 }

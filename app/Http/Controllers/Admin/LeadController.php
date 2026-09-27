@@ -436,7 +436,7 @@ class LeadController extends Controller
                     'id' => $entry->id,
                     'event' => $entry->event,
                     'description' => $entry->description,
-                    'user' => $entry->user?->name,
+                    'user' => $entry->causerLabel(),
                     'createdAt' => $this->iso($entry->created_at),
                     'note' => is_string($note) ? $note : null,
                     'changes' => is_array($changes) && $changes !== [] ? $changes : null,

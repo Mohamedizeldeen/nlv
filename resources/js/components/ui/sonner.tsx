@@ -1,44 +1,56 @@
 import { router } from '@inertiajs/react';
-import { useEffect, useState } from 'react';
+import { useSyncExternalStore } from 'react';
 import { Toaster as Sonner, type ToasterProps } from 'sonner';
-import { useAppearance } from '@/hooks/use-appearance';
 import { useFlashToast } from '@/hooks/use-flash-toast';
-import { isLocale, translate } from '@/i18n';
+import { DEFAULT_LOCALE, isLocale, translate } from '@/i18n';
 import type { Locale } from '@/i18n';
 
-/**
+/*
  * The page's language, for the toast region's landmark name. The toaster
- * sits outside the page component (app.tsx), so it follows the `locale`
- * prop of each visit; the first page's comes from <html lang>.
+ * sits outside the page component (app.tsx), so it cannot read the page's
+ * props: it follows the `locale` prop of each visit, and the first page's
+ * comes from <html lang>.
+ *
+ * The server renders it in English (it has no document to read), and
+ * hydration keeps that render; the client value then replaces it. A
+ * useState initialised from <html lang> would hydrate "Notifications" on
+ * the Arabic page and keep it, since sonner's region suppresses hydration
+ * warnings and the state never changes afterwards.
  */
+let visitedLocale: Locale | null = null;
+
+function subscribeToVisits(onChange: () => void): () => void {
+    return router.on('navigate', (event) => {
+        const next = event.detail.page.props.locale;
+        visitedLocale = isLocale(next) ? next : DEFAULT_LOCALE;
+        onChange();
+    });
+}
+
+function clientLocale(): Locale {
+    if (visitedLocale) {
+        return visitedLocale;
+    }
+
+    const lang = document.documentElement.lang;
+
+    return isLocale(lang) ? lang : DEFAULT_LOCALE;
+}
+
+const serverLocale = (): Locale => DEFAULT_LOCALE;
+
 function usePageLocale(): Locale {
-    const [locale, setLocale] = useState<Locale>(() =>
-        typeof document !== 'undefined' && isLocale(document.documentElement.lang)
-            ? document.documentElement.lang
-            : 'en',
-    );
-
-    useEffect(
-        () =>
-            router.on('navigate', (event) => {
-                const next = event.detail.page.props.locale;
-                setLocale(isLocale(next) ? next : 'en');
-            }),
-        [],
-    );
-
-    return locale;
+    return useSyncExternalStore(subscribeToVisits, clientLocale, serverLocale);
 }
 
 function Toaster({ ...props }: ToasterProps) {
-    const { appearance } = useAppearance();
     const locale = usePageLocale();
 
     useFlashToast();
 
     return (
         <Sonner
-            theme={appearance}
+            theme="dark"
             className="toaster group"
             position="bottom-right"
             containerAriaLabel={translate(locale, 'common.notifications')}
