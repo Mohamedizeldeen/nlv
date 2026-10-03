@@ -24,11 +24,20 @@
             <link rel="alternate" hreflang="x-default" href="{{ $page['props']['alternates']['en'] }}">
         @endif
 
+        {{-- The landing page's photos come from Unsplash: open that connection
+             while the scripts load. No crossorigin: the photos are plain <img>
+             requests, which can't use a connection opened for CORS. --}}
+        @if ($page['component'] === 'welcome')
+            <link rel="preconnect" href="https://images.unsplash.com">
+        @endif
+
         {{-- The Arabic pages also preload the regular weight of their Arabic faces
-             (Amiri for display, IBM Plex Sans Arabic for text). English pages
-             don't: the browser fetches them there only if Arabic is on screen. --}}
+             (Amiri for display, IBM Plex Sans Arabic for text), plus Amiri's bold
+             for the headlines' accent phrases, so the hero's doesn't change face
+             after the headline is up. English pages don't: the browser fetches
+             them there only if Arabic is on screen. --}}
         @if (\App\Support\Locales::isArabic())
-            {{ \Illuminate\Support\Facades\Vite::preloadFonts(['amiri' => [400], 'ibm-plex-sans-arabic' => [400]]) }}
+            {{ \Illuminate\Support\Facades\Vite::preloadFonts(['amiri' => [400, 700], 'ibm-plex-sans-arabic' => [400]]) }}
         @endif
 
         @fonts

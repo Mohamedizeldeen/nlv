@@ -71,13 +71,20 @@ export const cta = cva(
 
 /**
  * Reports whether an element has entered the viewport. Returns a callback
- * ref to attach to the element.
+ * ref to attach to the element. `phoneRootMargin`, when given, replaces
+ * `rootMargin` below md.
  */
 export function useInView({
     once = true,
     rootMargin = '0px 0px -10% 0px',
+    phoneRootMargin,
     threshold = 0,
-}: { once?: boolean; rootMargin?: string; threshold?: number } = {}) {
+}: {
+    once?: boolean;
+    rootMargin?: string;
+    phoneRootMargin?: string;
+    threshold?: number;
+} = {}) {
     const [node, setNode] = useState<Element | null>(null);
     const [inView, setInView] = useState(false);
 
@@ -85,6 +92,12 @@ export function useInView({
         if (!node) {
             return;
         }
+
+        const margin =
+            phoneRootMargin &&
+            window.matchMedia('(max-width: 47.99rem)').matches
+                ? phoneRootMargin
+                : rootMargin;
 
         const observer = new IntersectionObserver(
             ([entry]) => {
@@ -98,13 +111,13 @@ export function useInView({
                     setInView(false);
                 }
             },
-            { rootMargin, threshold },
+            { rootMargin: margin, threshold },
         );
 
         observer.observe(node);
 
         return () => observer.disconnect();
-    }, [node, once, rootMargin, threshold]);
+    }, [node, once, rootMargin, phoneRootMargin, threshold]);
 
     return [setNode, inView] as const;
 }
@@ -119,7 +132,11 @@ type RevealProps = {
     id?: string;
 };
 
-/** Fades and rises its children in once they scroll into view. */
+/**
+ * Fades and rises its children in once they scroll into view. Phones start
+ * it while the block is still a quarter screen below the fold: their tall,
+ * single-column blocks would otherwise fill the screen mid-fade.
+ */
 export function Reveal({
     as: Tag = 'div',
     delay = 0,
@@ -128,7 +145,7 @@ export function Reveal({
     children,
     id,
 }: RevealProps) {
-    const [ref, shown] = useInView();
+    const [ref, shown] = useInView({ phoneRootMargin: '0px 0px 25% 0px' });
 
     return (
         <Tag
@@ -200,23 +217,29 @@ export function SectionHeader({
     );
 }
 
+/** Each light's fill, and its colour as `--glow` for the phone gradient. */
 const glowColor = {
-    jade: 'bg-jade',
-    lagoon: 'bg-lagoon',
-    coral: 'bg-coral',
-    rose: 'bg-rose',
-    mint: 'bg-mint',
+    jade: 'bg-jade [--glow:var(--color-jade)]',
+    lagoon: 'bg-lagoon [--glow:var(--color-lagoon)]',
+    coral: 'bg-coral [--glow:var(--color-coral)]',
+    rose: 'bg-rose [--glow:var(--color-rose)]',
+    mint: 'bg-mint [--glow:var(--color-mint)]',
 } as const;
 
 /**
  * A soft coloured light for a section. The parent needs `relative isolate`;
  * size and position it with className (e.g. "-left-40 top-10 size-[36rem]").
+ * Below md it is painted as a gradient instead of a live blur (`glow-soft`
+ * in landing.css), which fits a round light of 26-40rem; `keepBlur` keeps
+ * the blur for anything else.
  */
 export function Glow({
     color,
+    keepBlur = false,
     className,
 }: {
     color: keyof typeof glowColor;
+    keepBlur?: boolean;
     className?: string;
 }) {
     return (
@@ -224,6 +247,7 @@ export function Glow({
             aria-hidden
             className={cn(
                 'pointer-events-none absolute -z-10 rounded-full opacity-40 blur-[70px] md:blur-[110px]',
+                !keepBlur && 'glow-soft',
                 glowColor[color],
                 className,
             )}
@@ -238,14 +262,119 @@ export function Atmosphere() {
             aria-hidden
             className="pointer-events-none fixed inset-0 -z-10 overflow-hidden"
         >
-            <div className="absolute -top-[25%] -left-[20%] size-[70vmax] animate-drift-a rounded-full bg-jade opacity-40 blur-[80px] will-change-transform md:blur-[120px]" />
-            <div className="absolute top-[15%] -right-[25%] size-[60vmax] animate-drift-b rounded-full bg-lagoon opacity-30 blur-[80px] will-change-transform md:blur-[120px]" />
-            <div className="absolute -bottom-[30%] left-[0%] size-[55vmax] animate-drift-c rounded-full bg-jade opacity-30 blur-[80px] will-change-transform md:blur-[120px]" />
-            <div className="absolute right-[5%] bottom-[0%] size-[34vmax] animate-drift-a rounded-full bg-lagoon opacity-20 blur-[70px] will-change-transform [animation-direction:reverse] [animation-duration:26s] md:blur-[100px]" />
+            <div className="absolute -top-[25%] -left-[20%] size-[70vmax] animate-drift-a rounded-full bg-jade opacity-40 blur-[80px] md:blur-[120px]" />
+            <div className="absolute top-[15%] -right-[25%] size-[60vmax] animate-drift-b rounded-full bg-lagoon opacity-30 blur-[80px] md:blur-[120px]" />
+            <div className="absolute -bottom-[30%] left-[0%] size-[55vmax] animate-drift-c rounded-full bg-jade opacity-30 blur-[80px] md:blur-[120px]" />
+            <div className="absolute right-[5%] bottom-[0%] size-[34vmax] animate-drift-a rounded-full bg-lagoon opacity-20 blur-[70px] [animation-direction:reverse] [animation-duration:26s] md:blur-[100px]" />
             <div className="absolute inset-0 bg-[radial-gradient(120%_90%_at_50%_40%,transparent_30%,var(--color-ink)_95%)]" />
             <div className="absolute inset-0 grain opacity-[0.06] mix-blend-overlay" />
         </div>
     );
+}
+
+/**
+ * Marks each landing section that is more than 100px off screen with
+ * `data-offscreen`, so its looping decorations (scan lines, pulse rings,
+ * the marquee) rest until it comes back; see landing.css.
+ */
+export function usePauseOffscreenLoops() {
+    useEffect(() => {
+        const sections = document.querySelectorAll('.landing main > section');
+        const observer = new IntersectionObserver(
+            (entries) => {
+                for (const entry of entries) {
+                    entry.target.toggleAttribute(
+                        'data-offscreen',
+                        !entry.isIntersecting,
+                    );
+                }
+            },
+            { rootMargin: '100px 0px' },
+        );
+
+        for (const section of sections) {
+            observer.observe(section);
+        }
+
+        return () => {
+            observer.disconnect();
+
+            for (const section of sections) {
+                section.removeAttribute('data-offscreen');
+            }
+        };
+    }, []);
+}
+
+/**
+ * Glides to an anchor on this page when the visitor taps a link to it, and
+ * only then: a reload, Back or a #hash on arrival lands in place at once
+ * instead of racing down the page. The browser still follows the link
+ * itself, so the URL, history and `hashchange` are untouched.
+ */
+export function useAnchorGlide() {
+    useEffect(() => {
+        const root = document.documentElement;
+        let timer: number | undefined;
+
+        const settle = () => {
+            window.clearTimeout(timer);
+            root.style.removeProperty('scroll-behavior');
+            window.removeEventListener('scrollend', settle);
+        };
+
+        const onClick = (event: MouseEvent) => {
+            if (
+                event.button !== 0 ||
+                event.metaKey ||
+                event.ctrlKey ||
+                event.shiftKey ||
+                event.altKey
+            ) {
+                return;
+            }
+
+            const link =
+                event.target instanceof Element
+                    ? event.target.closest('a[href]')
+                    : null;
+
+            if (
+                !(link instanceof HTMLAnchorElement) ||
+                link.target === '_blank'
+            ) {
+                return;
+            }
+
+            const here = window.location;
+            const url = new URL(link.href, here.href);
+
+            if (
+                !url.hash ||
+                url.origin !== here.origin ||
+                url.pathname !== here.pathname ||
+                url.search !== here.search ||
+                window.matchMedia('(prefers-reduced-motion: reduce)').matches
+            ) {
+                return;
+            }
+
+            // Smooth until this scroll ends; the timer covers browsers
+            // without `scrollend` and links that do not scroll.
+            settle();
+            root.style.scrollBehavior = 'smooth';
+            window.addEventListener('scrollend', settle, { once: true });
+            timer = window.setTimeout(settle, 2000);
+        };
+
+        // Capture phase, so a handler that stops the click cannot hide it.
+        document.addEventListener('click', onClick, true);
+
+        return () => {
+            document.removeEventListener('click', onClick, true);
+            settle();
+        };
+    }, []);
 }
 
 /**

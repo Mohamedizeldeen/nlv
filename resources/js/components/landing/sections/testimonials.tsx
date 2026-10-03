@@ -1,5 +1,5 @@
 import { ArrowLeft, ArrowRight } from 'lucide-react';
-import { Fragment, useId, useRef, useState } from 'react';
+import { Fragment, useEffect, useId, useRef, useState } from 'react';
 import type { CSSProperties, KeyboardEvent, PointerEvent } from 'react';
 import { useI18n } from '@/hooks/use-i18n';
 import { cn } from '@/lib/utils';
@@ -9,7 +9,14 @@ import { hasSection, useContent, useLanding } from '../landing-data';
 import { Managed, englishRun } from '../managed';
 import { messageParts } from '../message-parts';
 import { Photo } from '../photo';
-import { Container, cta, Glow, Reveal, SectionHeader } from '../primitives';
+import {
+    Container,
+    cta,
+    Glow,
+    Reveal,
+    SectionHeader,
+    useInView,
+} from '../primitives';
 
 // The stories (people, stores, quotes, figures and portraits) come from the
 // admin panel: `landing.stories`, published ones only, in their order.
@@ -59,6 +66,13 @@ function Coordinates({ value }: { value: string }) {
 
 /** The featured portrait's frame, width / height. */
 const PORTRAIT_FRAME = 4 / 5;
+
+/** A story and the two an arrow or a swipe reaches from it, wrapping round. */
+const around = (index: number, count: number) => [
+    (index + count - 1) % count,
+    index,
+    (index + 1) % count,
+];
 
 /**
  * The list's small avatar reuses the portrait's focal point, zoomed in
@@ -182,10 +196,35 @@ function Stories({ stories }: { stories: LandingStory[] }) {
     const count = stories.length;
     // The list can shrink under a kept selection (a story unpublished).
     const active = Math.min(chosen, count - 1);
+    // Portraits load as they come within reach: the current story's and its
+    // neighbours', then every story's once the section has been seen and the
+    // browser is idle, so jumping to any story fades into its photo. A
+    // portrait stays mounted once added, so the one being left fades out.
+    const [ready, setReady] = useState(() => new Set(around(active, count)));
+    const [sectionRef, inView] = useInView();
+
+    useEffect(() => {
+        if (!inView) {
+            return;
+        }
+
+        const addAll = () => setReady(new Set(stories.keys()));
+
+        if (typeof window.requestIdleCallback === 'function') {
+            const id = window.requestIdleCallback(addAll, { timeout: 1500 });
+
+            return () => window.cancelIdleCallback(id);
+        }
+
+        const id = window.setTimeout(addAll, 1500);
+
+        return () => window.clearTimeout(id);
+    }, [inView, stories]);
 
     const select = (index: number, focusTab = false) => {
         const next = (index + count) % count;
         setActive(next);
+        setReady((current) => new Set([...current, ...around(next, count)]));
 
         if (focusTab) {
             tabs.current[next]?.focus();
@@ -238,7 +277,11 @@ function Stories({ stories }: { stories: LandingStory[] }) {
     const story = stories[active];
 
     return (
-        <section id="stories" className="relative isolate py-24 md:py-36">
+        <section
+            ref={sectionRef}
+            id="stories"
+            className="relative isolate py-24 md:py-36"
+        >
             <Glow
                 color="jade"
                 className="-end-56 top-[38%] size-[34rem] opacity-35"
@@ -273,32 +316,34 @@ function Stories({ stories }: { stories: LandingStory[] }) {
                                 }}
                                 className="relative aspect-[4/5] touch-pan-y overflow-hidden rounded-[28px] bg-ink-raised md:w-[72%] lg:w-[68%]"
                             >
-                                {stories.map((item, index) => (
-                                    <Photo
-                                        key={item.id}
-                                        media={item.portrait}
-                                        alt={item.portraitAlt}
-                                        aria-hidden={index !== active}
-                                        draggable={false}
-                                        ratio={1.25}
-                                        focus={item.focus}
-                                        zoom={item.zoom}
-                                        style={uploadCrop(
-                                            item.portrait,
-                                            PORTRAIT_FRAME,
-                                            item.focus,
-                                            item.zoom,
-                                        )}
-                                        widths={[480, 800, 1200]}
-                                        sizes="(min-width: 1320px) 480px, (min-width: 1024px) 37vw, (min-width: 768px) 72vw, 100vw"
-                                        className={cn(
-                                            'absolute inset-0 size-full transition-[opacity,scale] duration-[700ms] ease-glass select-none',
-                                            index === active
-                                                ? 'scale-100 opacity-100'
-                                                : 'scale-[1.04] opacity-0',
-                                        )}
-                                    />
-                                ))}
+                                {stories.map((item, index) =>
+                                    ready.has(index) ? (
+                                        <Photo
+                                            key={item.id}
+                                            media={item.portrait}
+                                            alt={item.portraitAlt}
+                                            aria-hidden={index !== active}
+                                            draggable={false}
+                                            ratio={1.25}
+                                            focus={item.focus}
+                                            zoom={item.zoom}
+                                            style={uploadCrop(
+                                                item.portrait,
+                                                PORTRAIT_FRAME,
+                                                item.focus,
+                                                item.zoom,
+                                            )}
+                                            widths={[480, 800, 1200]}
+                                            sizes="(min-width: 1320px) 480px, (min-width: 1024px) 37vw, (min-width: 768px) 72vw, 100vw"
+                                            className={cn(
+                                                'absolute inset-0 size-full transition-[opacity,scale] duration-[700ms] ease-glass select-none',
+                                                index === active
+                                                    ? 'scale-100 opacity-100'
+                                                    : 'scale-[1.04] opacity-0',
+                                            )}
+                                        />
+                                    ) : null,
+                                )}
                                 <div
                                     aria-hidden
                                     className="absolute inset-x-0 bottom-0 h-3/5 bg-linear-to-t from-ink/85 via-ink/35 to-transparent"

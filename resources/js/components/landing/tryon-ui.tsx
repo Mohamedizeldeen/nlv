@@ -238,6 +238,14 @@ const qrCells = Array.from({ length: QR_SIZE * QR_SIZE }, (_, i) => {
     return (x * 7 + y * 13 + ((x * y) % 5)) % 3 === 0;
 });
 
+// The dark cells as one path of unit squares: a <rect> each would add 190
+// DOM nodes per glyph.
+const QR_PATH = qrCells
+    .map((on, i) =>
+        on ? `M${i % QR_SIZE} ${Math.floor(i / QR_SIZE)}h1v1h-1z` : '',
+    )
+    .join('');
+
 /** Decorative QR glyph for "continue on your phone" moments. */
 export function QrGlyph({ className }: { className?: string }) {
     return (
@@ -247,18 +255,7 @@ export function QrGlyph({ className }: { className?: string }) {
             shapeRendering="crispEdges"
             className={cn('size-20 rounded-[8px] bg-bone p-1.5', className)}
         >
-            {qrCells.map((on, i) =>
-                on ? (
-                    <rect
-                        key={i}
-                        x={i % QR_SIZE}
-                        y={Math.floor(i / QR_SIZE)}
-                        width="1"
-                        height="1"
-                        className="fill-ink"
-                    />
-                ) : null,
-            )}
+            <path d={QR_PATH} className="fill-ink" />
         </svg>
     );
 }

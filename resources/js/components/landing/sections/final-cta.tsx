@@ -152,7 +152,8 @@ function Backdrop() {
                 id={backdrop.id}
                 alt=""
                 widths={[640, 960, 1280]}
-                sizes="(min-width: 1320px) 1224px, 92vw"
+                // Blurred and dimmed, so a phone can take a file half as wide.
+                sizes="(min-width: 1320px) 1224px, (min-width: 768px) 92vw, 46vw"
                 className="absolute inset-0 size-full scale-110 blur-md brightness-[0.72] saturate-[0.9]"
                 style={{
                     objectPosition: `${backdrop.focus[0] * 100}% ${backdrop.focus[1] * 100}%`,

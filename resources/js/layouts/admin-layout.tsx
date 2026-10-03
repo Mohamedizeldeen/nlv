@@ -10,7 +10,7 @@ import {
     ViewSiteLink,
 } from '@/components/admin/admin-nav';
 import { portalSurface } from '@/components/admin/dialog';
-import { Atmosphere } from '@/components/landing/primitives';
+import { Atmosphere, useAnchorGlide } from '@/components/landing/primitives';
 import { cn } from '@/lib/utils';
 
 /*
@@ -21,8 +21,14 @@ import { cn } from '@/lib/utils';
 
 const MAIN_ID = 'admin-main';
 
-/** Forces the landing's dark look on <html> while an admin page is shown. */
+/**
+ * Forces the landing's dark look on <html> while an admin page is shown,
+ * and glides its in-page links (the content editor's section index) the
+ * way the landing does.
+ */
 function useAdminChrome() {
+    useAnchorGlide();
+
     useEffect(() => {
         const root = document.documentElement;
         const previousScheme = root.style.colorScheme;

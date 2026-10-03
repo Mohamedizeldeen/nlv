@@ -115,22 +115,34 @@ export function useI18n(): I18n {
 }
 
 /**
+ * Points <html lang dir> at `locale`, writing only what differs: assigning
+ * even the same `lang` makes the browser restyle the whole document.
+ */
+function applyDocumentLocale(locale: Locale): void {
+    const root = document.documentElement;
+    const dir = directionOf(locale);
+
+    if (root.lang !== locale) {
+        root.lang = locale;
+    }
+
+    if (root.dir !== dir) {
+        root.dir = dir;
+    }
+}
+
+/**
  * Keeps <html lang dir> in step with the page. The server renders them for
  * the first visit; this covers Inertia visits between an Arabic page and an
  * English-only one (/ar → /login). Call it once in each public page
  * (welcome.tsx, page.tsx); leaving the page restores English.
  */
 export function useDocumentLocale(): void {
-    const { locale, dir } = useI18n();
+    const { locale } = useI18n();
 
     useLayoutEffect(() => {
-        const root = document.documentElement;
-        root.lang = locale;
-        root.dir = dir;
+        applyDocumentLocale(locale);
 
-        return () => {
-            root.lang = DEFAULT_LOCALE;
-            root.dir = directionOf(DEFAULT_LOCALE);
-        };
-    }, [locale, dir]);
+        return () => applyDocumentLocale(DEFAULT_LOCALE);
+    }, [locale]);
 }

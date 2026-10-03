@@ -547,7 +547,9 @@ function CloudRow() {
                             alt={t('features.boutiqueAlt')}
                             ratio={1.25}
                             focus={photo.focus}
-                            sizes="(min-width: 1024px) 460px, 80vw"
+                            // On a phone the framed photo is about two
+                            // thirds of the screen wide.
+                            sizes="(min-width: 1024px) 460px, (min-width: 768px) 80vw, 66vw"
                             widths={[480, 800, 1200]}
                             className="absolute inset-0 size-full"
                         />

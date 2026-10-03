@@ -237,10 +237,10 @@
 }
 
 @layer base {
+    /* Anchor taps glide by script (useAnchorGlide), not by scroll-behavior:
+       here it would also animate reloads, Back and a #hash on arrival. */
     html.landing-page {
         background-color: var(--color-ink);
-        color-scheme: dark;
-        scroll-behavior: smooth;
         scroll-padding-top: 6rem;
     }
 
@@ -273,6 +273,89 @@
     transform: none;
 }
 
+/* Looping decorations rest while their section is off screen
+   (usePauseOffscreenLoops). */
+.landing
+    [data-offscreen]
+    :is(.animate-scan, .animate-pulse-ring, .animate-marquee) {
+    animation-play-state: paused;
+}
+
+/*
+ * Phones: a Glow is painted as a gradient with the exact falloff of a disc
+ * blurred by 70px (stops measured from the disc edge, so one profile fits
+ * 26-40rem) instead of a live filter, which iOS repaints on the CPU for
+ * every tile. md and up keep the real blur.
+ */
+@supports (background: color-mix(in oklab, red 50%, transparent)) {
+    @media (width < 48rem) {
+        .glow-soft {
+            filter: none;
+            background: transparent;
+        }
+
+        .glow-soft::before {
+            content: '';
+            position: absolute;
+            inset: -210px;
+            pointer-events: none;
+            background: radial-gradient(
+                circle closest-side,
+                var(--glow) 0,
+                color-mix(in oklab, var(--glow) 99.56%, transparent)
+                    calc(100% - 420px),
+                color-mix(in oklab, var(--glow) 99.25%, transparent)
+                    calc(100% - 402.5px),
+                color-mix(in oklab, var(--glow) 98.7%, transparent)
+                    calc(100% - 385px),
+                color-mix(in oklab, var(--glow) 97.74%, transparent)
+                    calc(100% - 367.5px),
+                color-mix(in oklab, var(--glow) 96.19%, transparent)
+                    calc(100% - 350px),
+                color-mix(in oklab, var(--glow) 93.82%, transparent)
+                    calc(100% - 332.5px),
+                color-mix(in oklab, var(--glow) 90.38%, transparent)
+                    calc(100% - 315px),
+                color-mix(in oklab, var(--glow) 85.65%, transparent)
+                    calc(100% - 297.5px),
+                color-mix(in oklab, var(--glow) 79.5%, transparent)
+                    calc(100% - 280px),
+                color-mix(in oklab, var(--glow) 71.98%, transparent)
+                    calc(100% - 262.5px),
+                color-mix(in oklab, var(--glow) 63.29%, transparent)
+                    calc(100% - 245px),
+                color-mix(in oklab, var(--glow) 53.83%, transparent)
+                    calc(100% - 227.5px),
+                color-mix(in oklab, var(--glow) 44.12%, transparent)
+                    calc(100% - 210px),
+                color-mix(in oklab, var(--glow) 34.73%, transparent)
+                    calc(100% - 192.5px),
+                color-mix(in oklab, var(--glow) 26.18%, transparent)
+                    calc(100% - 175px),
+                color-mix(in oklab, var(--glow) 18.85%, transparent)
+                    calc(100% - 157.5px),
+                color-mix(in oklab, var(--glow) 12.93%, transparent)
+                    calc(100% - 140px),
+                color-mix(in oklab, var(--glow) 8.45%, transparent)
+                    calc(100% - 122.5px),
+                color-mix(in oklab, var(--glow) 5.24%, transparent)
+                    calc(100% - 105px),
+                color-mix(in oklab, var(--glow) 3.08%, transparent)
+                    calc(100% - 87.5px),
+                color-mix(in oklab, var(--glow) 1.72%, transparent)
+                    calc(100% - 70px),
+                color-mix(in oklab, var(--glow) 0.91%, transparent)
+                    calc(100% - 52.5px),
+                color-mix(in oklab, var(--glow) 0.45%, transparent)
+                    calc(100% - 35px),
+                color-mix(in oklab, var(--glow) 0.21%, transparent)
+                    calc(100% - 17.5px),
+                color-mix(in oklab, var(--glow) 0.09%, transparent) 100%
+            );
+        }
+    }
+}
+
 /* Browsers without backdrop-filter get solid, readable surfaces. */
 @supports not
 ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
@@ -288,10 +371,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    html.landing-page {
-        scroll-behavior: auto;
-    }
-
     .landing *,
     .landing *::before,
     .landing *::after {

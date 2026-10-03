@@ -274,6 +274,7 @@ class ArabicPagesTest extends TestCase
 
         $latin = $this->fontPreload('http://vite.test/fonts/instrument-400.woff2');
         $amiri = $this->fontPreload('http://vite.test/fonts/amiri-400.woff2');
+        $amiriBold = $this->fontPreload('http://vite.test/fonts/amiri-700.woff2');
         $plex = $this->fontPreload('http://vite.test/fonts/plex-400.woff2');
 
         foreach (['/ar', '/ar/pages/privacy'] as $path) {
@@ -284,10 +285,11 @@ class ArabicPagesTest extends TestCase
             $response = $this->get($path)
                 ->assertOk()
                 ->assertSee($amiri, false)
+                // The bold too: the hero's accent words are set in it.
+                ->assertSee($amiriBold, false)
                 ->assertSee($plex, false)
                 ->assertSee($latin, false)
-                // The regular weight only, and only its woff2.
-                ->assertDontSee('href="http://vite.test/fonts/amiri-700.woff2" type', false)
+                // Only the weights on screen first, and only their woff2.
                 ->assertDontSee('href="http://vite.test/fonts/plex-500.woff2" type', false)
                 ->assertDontSee('href="http://vite.test/fonts/amiri-400.woff" type', false);
 

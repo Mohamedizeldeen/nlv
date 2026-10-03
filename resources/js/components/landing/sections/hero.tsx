@@ -1,5 +1,11 @@
 import { ArrowRight, ChevronLeft, ChevronRight, Play } from 'lucide-react';
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import {
+    useEffect,
+    useEffectEvent,
+    useRef,
+    useState,
+    useSyncExternalStore,
+} from 'react';
 import type {
     CSSProperties,
     KeyboardEvent as ReactKeyboardEvent,
@@ -13,7 +19,7 @@ import { IMAGES } from '../images';
 import { useContent, useLanding } from '../landing-data';
 import { useOrderDialog } from '../order-dialog';
 import { Photo } from '../photo';
-import { Container, cta, Glow, Reveal } from '../primitives';
+import { Container, cta, Glow, Reveal, useInView } from '../primitives';
 import { FitChip, ScanOverlay } from '../tryon-ui';
 
 // Placeholder content: replace before launch. The copy and the live badge's
@@ -254,6 +260,9 @@ const VB_H = Math.round(VB_W / HERO.aspect);
 const clamp01 = (value: number) =>
     Math.round(Math.min(1, Math.max(0, value)) * 1000) / 1000;
 
+// The lg breakpoint, from which the measurement labels are shown.
+const LG = '(min-width: 64rem)';
+
 const REDUCED_MOTION = '(prefers-reduced-motion: reduce)';
 const subscribeReducedMotion = (onChange: () => void) => {
     const media = window.matchMedia(REDUCED_MOTION);
@@ -294,40 +303,53 @@ export default function Hero() {
 
     // Measurement labels only show once they sit wholly inside the lens,
     // so none is ever cut in half by its edge. Uses where the lens is
-    // heading (not where a transition currently has it).
-    useEffect(() => {
+    // heading (not where a transition currently has it). Below lg the
+    // labels are hidden, so there is nothing to measure.
+    const updateLabels = useEffectEvent(() => {
         const stage = stageRef.current;
         const track = trackRef.current;
         const lensEl = lensRef.current;
 
-        if (!stage || !track || !lensEl) {
+        if (!stage || !track || !lensEl || !window.matchMedia(LG).matches) {
             return;
         }
 
-        const update = () => {
-            const bounds = track.getBoundingClientRect();
-            const width = lensEl.offsetWidth;
-            const left = bounds.left + lens * (bounds.width - width);
+        const bounds = track.getBoundingClientRect();
+        const width = lensEl.offsetWidth;
+        const left = bounds.left + lens * (bounds.width - width);
 
-            stage
-                .querySelectorAll<HTMLElement>('[data-lens-label]')
-                .forEach((label) => {
-                    const box = label.getBoundingClientRect();
-                    const inside =
-                        box.left >= left + 12 &&
-                        box.right <= left + width - 12 &&
-                        box.top >= bounds.top + 12 &&
-                        box.bottom <= bounds.bottom - 12;
+        stage
+            .querySelectorAll<HTMLElement>('[data-lens-label]')
+            .forEach((label) => {
+                const box = label.getBoundingClientRect();
+                const inside =
+                    box.left >= left + 12 &&
+                    box.right <= left + width - 12 &&
+                    box.top >= bounds.top + 12 &&
+                    box.bottom <= bounds.bottom - 12;
 
-                    label.style.opacity = inside ? '1' : '0';
-                });
-        };
+                label.style.opacity = inside ? '1' : '0';
+            });
+    });
 
-        update();
-        window.addEventListener('resize', update);
-
-        return () => window.removeEventListener('resize', update);
+    useEffect(() => {
+        updateLabels();
     }, [lens]);
+
+    // And again on resize, or when the viewport grows into lg (a tablet
+    // turned sideways), where the labels appear.
+    useEffect(() => {
+        const desktop = window.matchMedia(LG);
+        const update = () => updateLabels();
+
+        window.addEventListener('resize', update);
+        desktop.addEventListener('change', update);
+
+        return () => {
+            window.removeEventListener('resize', update);
+            desktop.removeEventListener('change', update);
+        };
+    }, []);
 
     // Don't wait forever for the photograph before the intro glide.
     useEffect(() => {
@@ -725,14 +747,21 @@ function HeadlinePanel() {
     );
 }
 
-/** "10,284 try-ons today", ticking up while the page is open. */
+/**
+ * "10,284 try-ons today", ticking up while it is on screen (and carrying
+ * on from there when it comes back).
+ */
 function LiveBadge({ className }: { className?: string }) {
     const { t, formatNumber } = useI18n();
     const { stats } = useLanding();
     const [count, setCount] = useState(stats.tryOnsToday);
+    const [ref, inView] = useInView({ once: false, rootMargin: '0px' });
 
     useEffect(() => {
-        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        if (
+            !inView ||
+            window.matchMedia('(prefers-reduced-motion: reduce)').matches
+        ) {
             return;
         }
 
@@ -741,10 +770,11 @@ function LiveBadge({ className }: { className?: string }) {
         }, 2500);
 
         return () => window.clearInterval(id);
-    }, []);
+    }, [inView]);
 
     return (
         <div
+            ref={ref}
             aria-live="off"
             className={cn(
                 'hero-chip flex items-center rounded-[14px] px-3.5 py-2 whitespace-nowrap glass-thin',

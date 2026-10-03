@@ -4,7 +4,11 @@ import { LandingDataProvider } from '@/components/landing/landing-data';
 import { LandingLinksContext } from '@/components/landing/links';
 import type { LandingLinks } from '@/components/landing/links';
 import { OrderDialogProvider } from '@/components/landing/order-dialog';
-import { Atmosphere } from '@/components/landing/primitives';
+import {
+    Atmosphere,
+    useAnchorGlide,
+    usePauseOffscreenLoops,
+} from '@/components/landing/primitives';
 import Features from '@/components/landing/sections/features';
 import FinalCta from '@/components/landing/sections/final-cta';
 import Footer from '@/components/landing/sections/footer';
@@ -25,6 +29,9 @@ export default function Welcome({ landing }: { landing: LandingData }) {
     const { auth } = usePage().props;
     // <html lang dir> for this page's language (/ or /ar).
     useDocumentLocale();
+    // Taps on #anchors glide; looping decorations rest off screen.
+    useAnchorGlide();
+    usePauseOffscreenLoops();
 
     const links: LandingLinks = {
         signedIn: Boolean(auth.user),
@@ -32,7 +39,7 @@ export default function Welcome({ landing }: { landing: LandingData }) {
         admin: adminDashboard(),
     };
 
-    // The landing page is always dark and scrolls smoothly to anchors.
+    // The landing page is always dark.
     useEffect(() => {
         const root = document.documentElement;
         root.classList.add('landing-page');

@@ -996,7 +996,7 @@ export default function HowItWorks() {
                         onScroll={onScroll}
                         onFocus={onFocus}
                         onBlur={onBlur}
-                        className="relative -mx-5 flex snap-x snap-mandatory scroll-px-5 [scrollbar-width:none] gap-4 overflow-x-auto overscroll-x-contain px-5 pt-2 pb-14 sm:-mx-8 sm:scroll-px-8 sm:px-8 lg:-mx-12 lg:scroll-px-12 lg:px-12 xl:mx-0 xl:grid xl:grid-cols-4 xl:gap-8 xl:overflow-visible xl:px-0 xl:pt-0 xl:pb-[184px] [&::-webkit-scrollbar]:hidden"
+                        className="relative -mx-5 flex snap-x snap-mandatory scroll-px-5 [scrollbar-width:none] gap-4 overflow-x-auto overflow-y-hidden overscroll-x-contain px-5 pt-2 pb-14 sm:-mx-8 sm:scroll-px-8 sm:px-8 lg:-mx-12 lg:scroll-px-12 lg:px-12 xl:mx-0 xl:grid xl:grid-cols-4 xl:gap-8 xl:overflow-visible xl:px-0 xl:pt-0 xl:pb-[184px] [&::-webkit-scrollbar]:hidden"
                     >
                         {steps.map((step, index) => {
                             const isActive = index === active;

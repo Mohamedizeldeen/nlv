@@ -13,6 +13,7 @@ import {
     Container,
     Glow,
     Reveal,
+    useAnchorGlide,
 } from '@/components/landing/primitives';
 import Footer from '@/components/landing/sections/footer';
 import Navbar from '@/components/landing/sections/navbar';
@@ -131,6 +132,8 @@ export default function ContentPage({ page, landing }: ContentPageProps) {
     const { url } = usePage();
     // <html lang dir> for this page's language (/pages or /ar/pages).
     useDocumentLocale();
+    // Taps on #anchors (the "On this page" index) glide.
+    useAnchorGlide();
 
     const links: LandingLinks = {
         signedIn: Boolean(auth.user),
@@ -138,7 +141,7 @@ export default function ContentPage({ page, landing }: ContentPageProps) {
         admin: adminDashboard(),
     };
 
-    // Same always-dark page as the landing, smooth scrolling included.
+    // Same always-dark page as the landing.
     useEffect(() => {
         const root = document.documentElement;
         root.classList.add('landing-page');

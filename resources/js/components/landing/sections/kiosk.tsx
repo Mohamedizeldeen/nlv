@@ -328,7 +328,7 @@ export default function Kiosk() {
                             id={IMAGES.kiosk.interior.id}
                             alt={t('kiosk.interiorAlt')}
                             widths={[640, 960, 1280, 1600]}
-                            sizes="(min-width: 1320px) 1224px, (min-width: 768px) 100vw, 220vw"
+                            sizes="(min-width: 1320px) 1224px, (min-width: 768px) 100vw, 110vw"
                             className="absolute inset-0 size-full origin-[50%_92%] scale-[1.32] object-[60%_100%] blur-[2px] md:scale-105 md:object-[50%_100%]"
                         />
                         {/* Evening light: darken, warm, and hold the edges. */}
@@ -346,6 +346,7 @@ export default function Kiosk() {
                         />
                         <Glow
                             color="jade"
+                            keepBlur
                             className="top-[18%] left-[48%] z-0 size-[34%] opacity-25 mix-blend-soft-light"
                         />
 
@@ -442,6 +443,8 @@ function KioskScene({ active }: { active: HotspotKey | null }) {
     const gradientId = useId();
     const fillId = `${gradientId}-fov-fill`;
     const rayId = `${gradientId}-fov-ray`;
+    // The ripple's rings rest once it has faded out (not during the fade).
+    const [rippleRested, setRippleRested] = useState(true);
 
     return (
         <div aria-hidden className="absolute inset-0">
@@ -467,11 +470,31 @@ function KioskScene({ active }: { active: HotspotKey | null }) {
                     'absolute bottom-[calc(16cqw+0.3%)] left-1/2 transition-opacity duration-500 ease-glass',
                     active === 'base' ? 'opacity-100' : 'opacity-0',
                 )}
+                onTransitionRun={(e) => {
+                    if (
+                        e.target === e.currentTarget &&
+                        e.propertyName === 'opacity'
+                    ) {
+                        setRippleRested(false);
+                    }
+                }}
+                onTransitionEnd={(e) => {
+                    if (
+                        e.target === e.currentTarget &&
+                        e.propertyName === 'opacity' &&
+                        active !== 'base'
+                    ) {
+                        setRippleRested(true);
+                    }
+                }}
             >
                 {[0, 1].map((ring) => (
                     <span
                         key={ring}
-                        className="absolute top-0 left-0 h-[34cqw] w-[90cqw] -translate-1/2 animate-pulse-ring rounded-[50%] border border-mint/80"
+                        className={cn(
+                            'absolute top-0 left-0 h-[34cqw] w-[90cqw] -translate-1/2 animate-pulse-ring rounded-[50%] border border-mint/80',
+                            rippleRested && '[animation-play-state:paused]',
+                        )}
                         style={{ animationDelay: `${ring * 1.2}s` }}
                     />
                 ))}

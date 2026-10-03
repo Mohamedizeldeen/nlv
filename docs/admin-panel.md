@@ -171,3 +171,23 @@ the name of the person who did it (`causer_name`), so deleting an account doesn'
     ```sh
     php artisan tinker --execute="App\Support\LandingContent::forget(); App\Support\Settings::forget();"
     ```
+
+- **Front-end build and delivery:** on every deploy, run `npm ci && npm run build` (or
+  `npm run build:ssr` with server-side rendering, below). The files in `public/build/assets` get new
+  names on every build, so serve them compressed (brotli or gzip) and with
+  `Cache-Control: public, max-age=31536000, immutable`. `public/.htaccess` does both on Apache when
+  the modules are on; on nginx or a CDN, set it up there. Check one file:
+
+    ```sh
+    curl -sI -H 'Accept-Encoding: br, gzip' https://<site>/build/assets/<file>.js
+    ```
+
+    The answer should show `content-encoding` and that `cache-control`. Without them, a phone on slow
+    4G waits more than twice as long for the first screen. Serve the site over HTTP/2 or HTTP/3, and
+    never with `php artisan serve` (one worker, no compression, no caching).
+
+    Server-side rendering is optional and needs Node on the server: keep
+    `php artisan inertia:start-ssr` running (Supervisor or systemd), run `php artisan inertia:stop-ssr`
+    on every deploy so it restarts with the new bundle, and check it with
+    `php artisan inertia:check-ssr`. If the SSR bundle is built but that server doesn't run, set
+    `INERTIA_SSR_ENABLED=false` in `.env`: otherwise every page view first tries to reach it.
